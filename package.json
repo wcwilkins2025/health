@@ -1,0 +1,7 @@
+{
+  "name": "weight-target",
+  "private": true,
+  "description": "Weight Target: meal plans, shopping lists, weigh-ins, blood pressure and a workout log. Static site on GitHub Pages, data in Supabase.",
+  "scripts": { "test": "node tests/run_tests.js" },
+  "devDependencies": { "sql.js": "1.10.3" }
+}

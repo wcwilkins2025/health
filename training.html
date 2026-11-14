@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+<script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
+<script src="js/import.js?v=1"></script>
+<style>
+  .tweek { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .tday { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+  .tday h4 { margin: 0 0 6px; font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; }
+  .tday.today { border: 2px solid var(--accent); }
+  .tday.today h4 { background: var(--accent); color: var(--accent-ink); margin: -10px -10px 8px; padding: 6px 10px; }
+  .tday .it { font-size: 13px; padding: 5px 0; border-top: 1px dashed var(--line); }
+  .tday .it .k { color: var(--accent); font-family: var(--display); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .14em; display: block; }
+  .tday .it .m { color: var(--muted); font-size: 12px; }
+  .tday details summary { font-weight: 400; font-size: 13px; }
+  .tday ol { margin: 4px 0 0; padding-left: 18px; font-size: 12px; }
+  .tday ol li { padding: 1px 0; }
+  .tday .done { color: var(--green); font-size: 12px; }
+  .tday .missed { color: var(--red); font-size: 12px; }
+  .tday .tot { font-size: 12px; font-family: var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; }
+  .tday.rest { background: var(--soft-accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Training</h1>
+  <div id="msg" class="msg" style="display:none"></div>
+
+  <div class="card" style="margin-bottom:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+    <button class="ghost small" id="prev">◀</button>
+    <strong id="week-label"></strong>
+    <button class="ghost small" id="next">▶</button>
+    <button class="ghost small" id="this-week">This week</button>
+    <span style="flex:1"></span>
+    <span class="muted small" id="status"></span>
+    <a href="log.html"><button type="button">Log a workout</button></a>
+  </div>
+
+  <div class="tweek" id="week"></div>
+  <p class="small muted" style="margin:8px 0 14px">Lifts come from your <a href="log.html">log</a>: the workout's exercises in order, the sets and reps it asks for, and the last top set as the number to beat. A day you lifted shows what you did, whatever the rotation said; what the week still owes moves to the days left. Walks and rides are the plan; nothing is logged.
+    <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--accent)">Import from Gym ACE</summary>
+      <span style="display:block;margin-top:6px">Upload Gym ACE's database (Settings → Backup in Gym ACE, or the GymACE.db file): <input type="file" id="import-file" accept=".db,.sqlite,.bak,*/*" style="font-size:14px"> <button class="small" id="import">Import</button>
+      <span id="last-sync"></span></span>
+    </details></p>
+
+  <div class="card" style="margin-bottom:14px">
+    <h2>The week's plan</h2>
+    <form id="plan-form">
+      <h3>Lifting rotation</h3>
+      <div id="rot-selects" style="display:flex; gap:8px; flex-wrap:wrap"></div>
+      <h3>Walking and riding</h3>
+      <div class="row" style="display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end">
+        <label>Walking, minutes / week <input type="number" id="a-walk" min="0" max="2500" step="5"></label>
+        <label>Walking pace <select id="a-walk-pace"><option value="easy">Easy, about 2.5 mph</option><option value="brisk">Brisk, about 3.5 mph</option></select></label>
+        <label>Cycling, minutes / week <input type="number" id="a-bike" min="0" max="2500" step="5"></label>
+        <label>Cycling pace <select id="a-bike-pace"><option value="easy">Easy, under 10 mph</option><option value="moderate">Moderate, 12 to 14 mph</option><option value="hard">Hard, 14 to 16 mph</option></select></label>
+        <label>kcal per lifting session <input type="number" id="a-kcalw" min="0" max="1500" step="25"></label>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px">
+        <button type="submit">Save</button>
+        <button type="button" class="ghost" id="fit-activity">Size walking and riding to the target date</button>
+        <span class="small" id="verdict"></span>
+      </div>
+    </form>
+    <p class="small muted" style="margin:10px 0 0">Walks spread over the week; rides land on alternate days. Calories are at your current weight and fall as it does; the forecast allows for that. The names are your workouts from the <a href="log.html">log</a>.</p>
+  </div>
+
+  <div class="grid" style="margin-bottom:14px">
+    <div class="card span">
+      <h2>Weekly volume <span class="muted small">weight × reps, all sets</span></h2>
+      <div class="chart short"><canvas id="chart"></canvas></div>
+      <p class="small muted" style="margin:8px 0 0">On a big cut the goal is to hold this line flat or rising. If volume is dropping week over week, eat more protein, not fewer calories.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Sessions</h2>
+      <table><thead><tr><th>Date</th><th>Workout</th><th class="num">Sets</th><th class="num">Volume</th></tr></thead><tbody id="sessions"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Personal records <span class="muted small">best weight per exercise</span></h2>
+      <table><thead><tr><th>Exercise</th><th class="num">Weight</th><th class="num">Reps</th><th>When</th></tr></thead><tbody id="prs"></tbody></table>
+    </div>
+  </div>
+
+  <div class="card" id="detail" style="margin-top:14px; display:none">
+    <h2 id="detail-title"></h2>
+    <div id="detail-body"></div>
+  </div>
+</main>
+<script>
+const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+let chart, fc = null, wk = null, templates = {}, sessions = [], anchor = new Date();
+function monday(d) { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+function iso(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function hours(min) { return min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? " " + (min % 60) + " min" : ""}` : `${min} min`; }
+
+function renderWeek() {
+  const ws = monday(anchor), today = todayStr();
+  const end = new Date(ws); end.setDate(end.getDate() + 6);
+  el("week-label").textContent = `Week of ${fmtDate(iso(ws))} to ${fmtDate(iso(end))}`;
+  el("week").innerHTML = wk.days.map((d, i) => {
+    const date = new Date(ws); date.setDate(date.getDate() + i); const ds = iso(date);
+    const done = sessions.filter(s => s.date === ds);
+    const lift = d.items.find(x => x.what === "Lift");
+    const rows = [];
+    if (lift) {
+      const t = templates[lift.workout] || [];
+      const mark = done.length ? `<span class="done">✓ ${done.map(s => `${s.workout ? esc(s.workout) + ", " : ""}${s.sets} sets, ${Number(s.volume).toLocaleString()} lb`).join("; ")}</span>`
+        : (lift.status === "missed" ? `<span class="missed">not logged</span>` : "");
+      rows.push(`<div class="it"><span class="k">Lift</span><details><summary>${esc(lift.workout)}${lift.also && lift.also.length ? " + " + lift.also.map(esc).join(" + ") : ""} <span class="m">${lift.kcal ? lift.kcal + " kcal" : ""}</span></summary><ol>${t.map(e => `<li>${esc(e.exercise)}${e.note ? ` <span class="m">${esc(e.note)}</span>` : ""}${e.last ? ` <span class="m">· last ${e.last.weight ? e.last.weight + " × " + e.last.reps : e.last.reps + " reps"}</span>` : ""}</li>`).join("")}</ol></details>${mark}</div>`);
+    } else if (done.length) {
+      rows.push(`<div class="it"><span class="k">Lift</span><span class="done">✓ ${esc(done[0].workout || "Workout")}, ${done[0].sets} sets</span></div>`);
+    }
+    d.items.filter(x => x.what !== "Lift").forEach(x => rows.push(`<div class="it"><span class="k">${esc(x.what.split(",")[0])}</span>${esc(x.what.split(",")[1] || "")}, ${x.minutes} min <span class="m">${x.kcal} kcal</span></div>`));
+    return `<div class="tday ${ds === today ? "today" : ""} ${rows.length ? "" : "rest"}"><h4>${ds === today ? "Today, " : ""}${fmtDate(ds)}</h4>${rows.join("") || `<div class="it muted">Rest</div>`}${d.kcal ? `<div class="tot">${d.kcal} kcal</div>` : ""}</div>`;
+  }).join("");
+}
+async function showWeek() { wk = await api(`/api/training/week/${iso(anchor)}`); renderWeek(); }
+function renderPlan() {
+  const a = fc.assumptions, names = [...new Set([...Object.keys(templates), ...a.lift_rotation.filter(x => x !== "Rest")])];
+  el("rot-selects").innerHTML = DOW.map((d, i) => `<label>${d} <select data-i="${i}"><option value="Rest">Rest</option>${names.map(n => `<option value="${esc(n)}" ${a.lift_rotation[i] === n ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></label>`).join("");
+  el("a-walk").value = a.walk_min_per_week; el("a-walk-pace").value = a.walk_pace;
+  el("a-bike").value = a.bike_min_per_week; el("a-bike-pace").value = a.bike_pace;
+  el("a-kcalw").value = a.kcal_per_workout;
+  const fit = fc.fit;
+  if (fit && a.target_date) {
+    el("verdict").innerHTML = fc.on_track ? `<span class="pill green">on track</span> ${a.target_weight} by ${fmtDate(a.target_date)}: ${hours(a.walk_min_per_week)} walking, ${hours(a.bike_min_per_week)} riding a week.`
+      : `<span class="pill red">not yet</span> ` + (fit.activity.feasible ? `needs about ${hours(fit.activity.walk_min_per_week)} walking and ${hours(fit.activity.bike_min_per_week)} riding a week at the plan's calories.` : `no amount of walking and riding gets there at the plan's calories; see <a href="weight.html">Weight</a>.`);
+    el("fit-activity").disabled = !fit.activity.feasible;
+  } else { el("verdict").innerHTML = `<a href="weight.html">Set a target date</a> to size the week.`; el("fit-activity").disabled = true; }
+}
+async function load() {
+  const [s, weekly, prs, f, w] = await Promise.all([api("/api/gym/sessions"), api("/api/gym/weekly"), api("/api/gym/prs"), api("/api/forecast"), api("/api/gym/workouts")]);
+  sessions = s.sessions; fc = f; templates = Object.fromEntries(w.map(x => [x.workout, x.exercises]));
+  el("last-sync").textContent = s.last_sync ? `Last Gym ACE import ${fmtDateTime(s.last_sync)}.` : "";
+  const wk = weekly.find(x => x.week_start === iso(monday(new Date())));
+  el("status").textContent = wk ? `${wk.sessions} of ${fc.assumptions.workouts_per_week} lifts this week` : `0 of ${fc.assumptions.workouts_per_week} lifts this week`;
+  await showWeek(); renderPlan();
+  el("sessions").innerHTML = sessions.map(x => `<tr style="cursor:pointer" onclick="detail(${x.session_ms})"><td>${fmtDate(x.date)}</td><td>${esc(x.workout || "")}</td><td class="num">${x.sets}</td><td class="num">${Number(x.volume).toLocaleString()}</td></tr>`).join("")
+    || `<tr><td colspan="4" class="muted">No sessions yet. <a href="log.html">Log one.</a></td></tr>`;
+  el("prs").innerHTML = prs.map(p => `<tr><td>${esc(p.exercise)} ${p.new ? '<span class="pill green">new</span>' : ""}</td><td class="num">${p.weight ? p.weight : "body"}</td><td class="num">${p.reps ?? ""}</td><td class="muted">${fmtDate(p.date)}</td></tr>`).join("")
+    || `<tr><td colspan="4" class="muted">No records yet.</td></tr>`;
+  const data = { labels: weekly.map(w => "Wk of " + fmtDate(w.week_start)), datasets: [
+    { label: "Volume", data: weekly.map(w => w.volume), backgroundColor: "#7a4219", borderRadius: 4 } ] };
+  if (chart) { chart.data = data; chart.update(); }
+  else chart = new Chart(el("chart"), { type: "bar", data, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
+    tooltip: { callbacks: { afterLabel: ctx => { const w = weekly[ctx.dataIndex]; return `${w.sessions} session${w.sessions === 1 ? "" : "s"}, ${w.sets} sets`; } } } },
+    scales: { y: { beginAtZero: true, grid: { color: cssVar("--line") } }, x: { grid: { display: false } } } } });
+}
+async function detail(ms) {
+  const d = await api(`/api/gym/sessions/${ms}`);
+  el("detail").style.display = "block";
+  el("detail-title").textContent = `${d.workout || "Workout"}, ${fmtDate(d.date)}`;
+  el("detail-body").innerHTML = d.exercises.map(ex => `<h3>${esc(ex.exercise)}</h3><div class="small">${ex.sets.map(s => `${s.weight ?? "–"} × ${s.reps ?? "–"}`).join(" &nbsp;·&nbsp; ")}</div>`).join("");
+  el("detail").scrollIntoView({ behavior: "smooth" });
+}
+el("plan-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const rot = [...el("rot-selects").querySelectorAll("select")].map(s => s.value).join(",");
+  const body = { lift_rotation: rot, workouts_per_week: "", kcal_per_workout: el("a-kcalw").value,
+    walk_min_per_week: el("a-walk").value || "0", walk_pace: el("a-walk-pace").value, bike_min_per_week: el("a-bike").value || "0", bike_pace: el("a-bike-pace").value };
+  try { await api("/api/settings", { method: "PATCH", body }); await load(); flash("msg", "Week saved. The forecast follows it."); }
+  catch (e) { flash("msg", e.message, "err"); }
+});
+el("fit-activity").addEventListener("click", async () => {
+  try { await api("/api/forecast/fit", { method: "POST", body: { mode: "activity" } }); await load(); flash("msg", "Walking and riding sized to the target date."); }
+  catch (e) { flash("msg", e.message, "err"); }
+});
+el("import").addEventListener("click", async () => {
+  const f = el("import-file").files[0];
+  if (!f) { flash("msg", "Pick the Gym ACE database file first.", "err"); return; }
+  el("import").disabled = true;
+  try {
+    const r = await importFile(f, "gymace");
+    flash("msg", `Imported ${r.imported} new sets, ${r.updated} changed, ${r.removed} removed. ${r.sessions} sessions in all.`);
+    await load();
+  } catch (e) { flash("msg", e.message, "err"); }
+  el("import").disabled = false;
+});
+el("prev").addEventListener("click", () => { anchor.setDate(anchor.getDate() - 7); showWeek().catch(e => flash("msg", e.message, "err")); });
+el("next").addEventListener("click", () => { anchor.setDate(anchor.getDate() + 7); showWeek().catch(e => flash("msg", e.message, "err")); });
+el("this-week").addEventListener("click", () => { anchor = new Date(); showWeek().catch(e => flash("msg", e.message, "err")); });
+load().catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shopping · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+</head>
+<body>
+<main>
+  <h1>Shopping list</h1>
+  <div id="msg" class="msg" style="display:none"></div>
+
+  <div class="card" style="margin-bottom:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+    <button class="ghost small" id="prev">◀</button>
+    <strong id="week-label"></strong>
+    <button class="ghost small" id="next">▶</button>
+    <span style="flex:1"></span>
+    <span class="muted small" id="progress"></span>
+    <button class="ghost small" id="clear">Uncheck all</button>
+  </div>
+
+  <div class="card" style="margin-bottom:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+    <button id="copy-list">Copy the list</button>
+    <span class="small muted">The checked items, or the whole list when nothing is checked, as text to paste into Bring!, Notes or a message.</span>
+  </div>
+
+  <div id="empty" class="card muted" style="display:none">No plan for this week. <a href="plan.html">Generate one</a> and the list builds itself.</div>
+  <div id="list"></div>
+  <p class="small muted" style="margin-top:14px">Quantities are the sum of every serving in the week's plan. Round up to package sizes. Pantry staples you already have can be skipped; salt, pepper and spices are not listed.</p>
+</main>
+<script>
+let anchor = new Date(); let planId = null;
+function monday(d) { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+function iso(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function qty(it) {
+  const n = it.qty % 1 === 0 ? it.qty : it.qty.toFixed(1);
+  const unit = unitName(it.unit, it.qty);
+  return `${n} ${unit}`;
+}
+async function load() {
+  const ws = iso(monday(anchor));
+  const end = new Date(monday(anchor)); end.setDate(end.getDate() + 6);
+  el("week-label").textContent = `Week of ${fmtDate(ws)} to ${fmtDate(iso(end))}`;
+  const plan = await api(`/api/plans/week/${ws}`);
+  planId = plan ? plan.id : null;
+  el("empty").style.display = planId ? "none" : "block";
+  lastGroups = [];
+  if (!planId) { el("list").innerHTML = ""; el("progress").textContent = ""; return; }
+  render(await api(`/api/plans/${planId}/shopping`));
+}
+function render(groups) {
+  let total = 0, done = 0;
+  el("list").innerHTML = groups.map(g => `<div class="card" style="margin-bottom:12px"><h2>${esc(g.section)}</h2>` +
+    g.items.map(it => { total++; if (it.checked) done++; return `<label class="check ${it.checked ? "done" : ""}"><input type="checkbox" ${it.checked ? "checked" : ""} onchange="check('${it.food_id}', this.checked)"> ${esc(it.name)} <span class="qty">${qty(it)}</span></label>`; }).join("") + `</div>`).join("");
+  el("progress").textContent = `${done} of ${total} checked`;
+  lastGroups = groups;
+}
+async function check(foodId, checked) {
+  try { render(await api(`/api/plans/${planId}/shopping/${foodId}`, { method: "PATCH", body: { checked } })); }
+  catch (e) { flash("msg", e.message, "err"); }
+}
+el("clear").addEventListener("click", async () => {
+  if (!planId) return;
+  const groups = await api(`/api/plans/${planId}/shopping`);
+  for (const g of groups) for (const it of g.items) if (it.checked) await api(`/api/plans/${planId}/shopping/${it.food_id}`, { method: "PATCH", body: { checked: false } });
+  load();
+});
+// ---- copy the list ----
+let lastGroups = [];
+el("copy-list").addEventListener("click", async () => {
+  const all = lastGroups.flatMap(g => g.items), picked = all.filter(it => it.checked), items = picked.length ? picked : all;
+  if (!items.length) { flash("msg", "Nothing on the list yet.", "err"); return; }
+  const text = items.map(it => `${it.name}, ${qty(it)}`).join("\n");
+  try { await navigator.clipboard.writeText(text); flash("msg", `Copied ${items.length} item${items.length === 1 ? "" : "s"}. Paste them into Bring! or anywhere.`); }
+  catch (e) { flash("msg", "Could not copy: " + e.message, "err"); }
+});
+
+el("prev").addEventListener("click", () => { anchor.setDate(anchor.getDate() - 7); load(); });
+el("next").addEventListener("click", () => { anchor.setDate(anchor.getDate() + 7); load(); });
+load().catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+</head>
+<body>
+<main>
+  <h1>Dashboard <span class="muted small" id="today"></span></h1>
+  <div id="msg" class="msg" style="display:none"></div>
+
+  <div class="card span today-card" style="margin-bottom:14px">
+    <div class="today-head"><span class="today-label">Today</span><span id="today-date"></span><span class="muted small" id="today-dayno"></span></div>
+    <div class="today-cols">
+      <div><h2>Eat</h2><div id="plan-body" class="muted">No plan for this week. <a href="plan.html">Make one.</a></div></div>
+      <div><h2>Move</h2><div id="move-body" class="muted"></div></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card span">
+      <div class="stats">
+        <div class="stat"><span class="label">Current weight</span><span class="value" id="w-current">–</span><span class="sub" id="w-start"></span></div>
+        <div class="stat"><span class="label">Lost so far</span><span class="value" id="w-lost">–</span><span class="sub">lbs</span></div>
+        <div class="stat"><span class="label">To go</span><span class="value" id="w-togo">–</span><span class="sub" id="w-target"></span></div>
+        <div class="stat"><span class="label">Pace</span><span class="value" id="w-rate">–</span><span class="sub">lbs / week</span></div>
+        <div class="stat"><span class="label">Projected</span><span class="value" id="w-proj">–</span><span class="sub" id="w-weeks"></span></div>
+      </div>
+    </div>
+
+    <div class="card span">
+      <h2>Weight and workout days</h2>
+      <div class="legend"><span style="--c:#7a4219">Weight</span><span style="--c:#a8740a">Workout day</span><span style="--c:#a63a2b" id="leg-target">Target</span></div>
+      <div class="chart"><canvas id="chart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>Blood pressure</h2>
+      <div id="bp-body" class="muted">No readings yet. <a href="bp.html">Log one.</a></div>
+    </div>
+
+    <div class="card">
+      <h2>Training</h2>
+      <div id="gym-body" class="muted">No workouts yet. <a href="log.html">Log one.</a></div>
+    </div>
+
+    <div class="card" id="code-card" style="display:none">
+      <h2>My Code</h2>
+      <p class="small muted" style="margin:0">Your own words, kept with your account. <a href="code.html">Read the whole page.</a></p>
+    </div>
+
+  </div>
+</main>
+<script>
+async function load() {
+  const s = await api("/api/summary");
+  el("today").textContent = fmtDate(s.today);
+  const w = s.weight;
+  el("w-current").textContent = w.current ?? "–";
+  el("w-start").textContent = `started at ${w.start_weight}`;
+  el("w-lost").textContent = w.lost ?? 0;
+  el("w-togo").textContent = w.to_go ?? "–";
+  el("w-target").textContent = `target ${w.target_weight}`;
+  el("leg-target").textContent = `Target ${w.target_weight}`;
+  el("w-rate").textContent = w.rate_per_week == null ? "–" : (w.rate_per_week > 0 ? "+" : "") + w.rate_per_week;
+  el("w-proj").textContent = w.projected_date ? fmtDate(w.projected_date) : "–";
+  el("w-weeks").textContent = w.weeks_left ? `about ${w.weeks_left} weeks` : "needs a few more entries";
+
+  // BP card
+  if (s.bp.latest) {
+    const l = s.bp.latest, a = s.bp.avg7;
+    el("bp-body").className = "";
+    el("bp-body").innerHTML = `
+      <div class="stats">
+        <div class="stat"><span class="label">Latest</span><span class="value">${l.systolic}/${l.diastolic}</span><span class="sub">${fmtDateTime(l.taken_at)}${l.pulse ? ", pulse " + l.pulse : ""}</span></div>
+        <div class="stat"><span class="label">7-day average</span><span class="value">${a.systolic}/${a.diastolic}</span><span class="sub"><span class="pill ${s.bp.category}">${CAT_LABEL[s.bp.category]}</span> over ${a.n} reading${a.n === 1 ? "" : "s"}</span></div>
+      </div>`;
+  }
+
+  // Gym card
+  const g = s.gym;
+  if (g.last_session) {
+    const tw = g.this_week;
+    el("gym-body").className = "";
+    el("gym-body").innerHTML = `
+      <div class="stats">
+        <div class="stat"><span class="label">Last session</span><span class="value" style="font-size:20px">${esc(g.last_session.workout || "Workout")}</span><span class="sub">${fmtDate(g.last_session.date)}, ${g.last_session.sets} sets, ${Number(g.last_session.volume).toLocaleString()} lb volume</span></div>
+        <div class="stat"><span class="label">This week</span><span class="value">${tw ? tw.sessions : 0}</span><span class="sub">${tw ? tw.sets + " sets, " + Number(tw.volume).toLocaleString() + " lb" : "no sessions yet"}</span></div>
+      </div>
+      ${g.prs.length ? `<h3>New records (14 days)</h3><div class="small">${g.prs.map(p => `${esc(p.exercise)} ${p.weight ? p.weight + " × " + p.reps : p.reps + " reps"}`).join("<br>")}</div>` : ""}`;
+  }
+
+  // Today card
+  el("code-card").style.display = s.has_my_code ? "" : "none";
+  el("today-date").textContent = fmtDate(s.today);
+  el("today-dayno").textContent = s.day_no > 0 ? `day ${s.day_no}` : "";
+  if (s.today_plan) {
+    const d = s.today_plan, n = d.nutrition;
+    el("plan-body").className = "";
+    el("plan-body").innerHTML = (d.away ? `<div class="pill yellow" style="margin-bottom:8px">Away day: pack the cooler</div>` : "") +
+      d.slots.map(sl => `<div class="today-row"><span class="k">${sl.slot.replace(/\d/, "")}</span>${sl.meal_id ? `<a href="recipes.html?meal=${sl.meal_id}">${esc(sl.name)}</a>` : "—"}${sl.nutrition ? `<span class="muted small">${sl.nutrition.kcal} kcal</span>` : ""}</div>`).join("") +
+      (n ? `<div class="today-tot">${n.kcal} kcal · ${n.protein} g protein · ${n.carbs} g net carbs</div>` : "") +
+      `<p class="small" style="margin:8px 0 0"><a href="plan.html">Open the week</a> · <a href="shopping.html">Shopping list</a></p>`;
+  }
+  const mv = s.today_schedule;
+  el("move-body").className = "";
+  const parts = mv && mv.items.length ? mv.items.map(i => i.what === "Lift" ? esc(i.workout || "Lift") : `${esc(i.what.split(",")[1] ? i.what.split(",")[1].trim() : "")} ${i.what.toLowerCase().startsWith("walk") ? "walk" : "ride"}, ${i.minutes} min`) : [];
+  el("move-body").innerHTML = `<div class="today-row"><span class="k">Move</span><span>${parts.length ? parts.join(" · ") : "Rest"}</span>${mv && mv.kcal ? `<span class="muted small">${mv.kcal} kcal</span>` : ""}</div>` +
+    `<p class="small" style="margin:8px 0 0"><a href="log.html">Log a workout</a> · <a href="training.html">Training: the week, exercises, last sets</a> · <a href="blog.html">Today's post</a></p>`;
+
+  // Chart
+  const labels = s.weights.map(x => x.date);
+  const workoutSet = new Set(g.workout_dates);
+  const allDates = Array.from(new Set([...labels, ...g.workout_dates])).sort();
+  const wmap = Object.fromEntries(s.weights.map(x => [x.date, x.weight]));
+  const minW = Math.min(w.target_weight, ...s.weights.map(x => x.weight)) - 5;
+  const maxW = Math.max(w.start_weight, ...s.weights.map(x => x.weight)) + 5;
+  new Chart(el("chart"), {
+    data: {
+      labels: allDates.map(fmtDate),
+      datasets: [
+        { type: "line", label: "Weight", data: allDates.map(d => wmap[d] ?? null), borderColor: "#7a4219", backgroundColor: "#7a4219", spanGaps: true, tension: .2, pointRadius: 3 },
+        { type: "scatter", label: "Workout", data: allDates.map(d => workoutSet.has(d) ? minW + 1 : null), backgroundColor: "#a8740a", pointStyle: "triangle", pointRadius: 6 },
+        { type: "line", label: "Target", data: allDates.map(() => w.target_weight), borderColor: "#a63a2b", borderDash: [6, 4], pointRadius: 0, borderWidth: 1 },
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+      scales: { y: { min: Math.floor(minW), max: Math.ceil(maxW), grid: { color: cssVar("--line") } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } } } }
+  });
+}
+load().catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

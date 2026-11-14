@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foods · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+</head>
+<body>
+<main>
+  <h1>Food library</h1>
+  <div id="msg" class="msg" style="display:none"></div>
+
+  <div class="tabs">
+    <button class="active" data-light="green">Green: eat freely</button>
+    <button data-light="yellow">Yellow: test one at a time</button>
+    <button data-light="red">Red: off the menu</button>
+  </div>
+
+  <div class="card" id="explain" style="margin-bottom:14px"></div>
+
+  <div class="card" style="margin-bottom:14px">
+    <input type="search" id="q" placeholder="Search foods" style="width:100%">
+    <div id="list"></div>
+  </div>
+
+  <div class="card">
+    <h2>Add a food</h2>
+    <form class="row" id="add">
+      <label>Name <input id="f-name" required></label>
+      <label>Light <select id="f-light"><option value="green">Green</option><option value="yellow">Yellow</option><option value="red">Red</option></select></label>
+      <label>Category <input id="f-cat" placeholder="meat, dairy, vegetable…"></label>
+      <label>Carbs / serving <input type="number" id="f-carbs" step="0.5" value="0"></label>
+      <label>Serving <input id="f-serving" placeholder="4 oz"></label>
+      <label>Store section <select id="f-section"><option>Meat</option><option>Seafood</option><option>Deli</option><option>Dairy &amp; Eggs</option><option>Produce</option><option>Pantry</option><option>Snacks</option><option>Drinks</option><option>Frozen</option><option>Other</option></select></label>
+      <label style="flex:1">Note <input id="f-note"></label>
+      <button type="submit">Add</button>
+    </form>
+  </div>
+</main>
+<script>
+const EXPLAIN = {
+  green: "Protein and fat first. Nothing here needs counting. If you are hungry after a meal, eat more from this list.",
+  yellow: "Fine for most people but some of these set off the carb hunger in people with your pattern. Each one starts locked and stays out of the meal plan. Try one at a time, notice whether you are hungrier two hours later, and unlock it only if you were not.",
+  red: "These are the foods that send you over the edge. They never appear in the plan or the shopping list. Kept here so the list is honest about what is out.",
+};
+let foods = [], light = "green";
+function render() {
+  el("explain").textContent = EXPLAIN[light];
+  const q = el("q").value.toLowerCase();
+  const rows = foods.filter(f => f.light === light && (!q || f.name.toLowerCase().includes(q) || f.category.includes(q)));
+  const byCat = {};
+  rows.forEach(f => (byCat[f.category] ||= []).push(f));
+  el("list").innerHTML = Object.keys(byCat).sort().map(cat => `<h3>${esc(cat)}</h3>` + byCat[cat].map(f => `
+    <div class="food-row">
+      <div class="name">${esc(f.name)} ${f.light === "yellow" ? (f.unlocked ? '<span class="pill green">unlocked</span>' : '<span class="pill yellow">locked</span>') : ""}
+        <div class="meta">${f.serving ? esc(f.serving) + " · " : ""}${f.carbs_per_serving}g carbs${f.note ? " · " + esc(f.note) : ""}</div></div>
+      ${f.light === "yellow" ? `<button class="small ${f.unlocked ? "danger" : "ghost"}" onclick="toggle('${f.id}', ${f.unlocked ? "false" : "true"})">${f.unlocked ? "Lock" : "Unlock"}</button>` : ""}
+      ${f.light !== "red" ? `<button class="small ghost" title="Move to red" onclick="setLight('${f.id}', 'red')">Ban</button>` : `<button class="small ghost" onclick="setLight('${f.id}', 'yellow')">To yellow</button>`}
+    </div>`).join("")).join("") || `<p class="muted">Nothing here.</p>`;
+}
+async function toggle(id, unlocked) {
+  try { await api(`/api/foods/${id}`, { method: "PATCH", body: { unlocked } }); await load(); flash("msg", unlocked ? "Unlocked. It can now appear in meal plans." : "Locked."); }
+  catch (e) { flash("msg", e.message, "err"); }
+}
+async function setLight(id, l) {
+  try { await api(`/api/foods/${id}`, { method: "PATCH", body: { light: l } }); if (l === "red") await api(`/api/foods/${id}`, { method: "PATCH", body: { unlocked: false } }); await load(); }
+  catch (e) { flash("msg", e.message, "err"); }
+}
+async function load() { foods = await api("/api/foods"); render(); }
+document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("active")); b.classList.add("active"); light = b.dataset.light; render();
+}));
+el("q").addEventListener("input", render);
+el("add").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  try {
+    await api("/api/foods", { method: "POST", body: { name: el("f-name").value, light: el("f-light").value, category: el("f-cat").value || "other",
+      carbs_per_serving: +el("f-carbs").value, serving: el("f-serving").value, store_section: el("f-section").value, note: el("f-note").value } });
+    ev.target.reset(); await load(); flash("msg", "Added.");
+  } catch (e) { flash("msg", e.message, "err"); }
+});
+load().catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

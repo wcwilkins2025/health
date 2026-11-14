@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meal plan · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+</head>
+<body>
+<main>
+  <h1>Meal plan</h1>
+  <div id="msg" class="msg" style="display:none"></div>
+
+  <div class="card" style="margin-bottom:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+    <button class="ghost small" id="prev">◀</button>
+    <strong id="week-label"></strong>
+    <button class="ghost small" id="next">▶</button>
+    <span style="flex:1"></span>
+    <button id="generate">Generate plan</button>
+    <button class="ghost" id="from-pantry" style="display:none" title="Only meals made from the groceries on the week before's list">Use the week before's groceries</button>
+    <button class="ghost" id="regenerate" style="display:none">Regenerate</button>
+    <a id="shop-link" class="small" href="shopping.html" style="display:none">Shopping list →</a>
+  </div>
+
+  <div id="empty" class="card muted" style="display:none">No plan for this week yet. Mark any away days after generating, and the planner will pick portable meals for them.</div>
+
+  <div class="week" id="week"></div>
+
+  <div class="card" style="margin-top:14px" id="nutri" style="display:none">
+    <h2>Nutrition this week</h2>
+    <div class="legend"><span style="--c:#7a4219">Protein</span><span style="--c:#a8740a">Fat</span><span style="--c:#a63a2b">Net carbs</span></div>
+    <div class="chart"><canvas id="nutri-chart"></canvas></div>
+    <table class="small" id="nutri-table" style="width:100%; margin-top:8px; border-collapse:collapse"></table>
+    <p class="small muted" style="margin:8px 0 0">Per serving as written in the recipe, from standard reference values (raw weight for meat and fish, net carbs). Good to about 10 percent.</p>
+  </div>
+
+  <div class="grid" style="margin-top:14px" id="extras" style="display:none">
+    <div class="card"><h2>Sunday batch cook</h2><div id="batch" class="small"></div></div>
+    <div class="card"><h2>Cooler bag</h2><div id="cooler" class="small muted">Mark a day as away to see what to pack.</div></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h2>Recipes in this week</h2>
+    <div id="recipes"></div>
+  </div>
+</main>
+<script>
+const SLOT_LABEL = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack1: "Snack", snack2: "Snack" };
+const SLOT_TYPE = { breakfast: "breakfast", lunch: "lunch", dinner: "dinner", snack1: "snack", snack2: "snack" };
+let anchor = new Date(); let plan = null; let meals = [];
+function monday(d) { const x = new Date(d); x.setHours(0,0,0,0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+function iso(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+
+async function load() {
+  const ws = iso(monday(anchor));
+  const end = new Date(monday(anchor)); end.setDate(end.getDate() + 6);
+  el("week-label").textContent = `Week of ${fmtDate(ws)} to ${fmtDate(iso(end))}`;
+  if (!meals.length) meals = await api("/api/meals");
+  plan = await api(`/api/plans/week/${ws}`);
+  render();
+}
+function render() {
+  const has = !!plan;
+  el("empty").style.display = has ? "none" : "block";
+  el("generate").style.display = has ? "none" : "";
+  el("from-pantry").style.display = has ? "none" : "";
+  el("regenerate").style.display = has ? "" : "none";
+  el("shop-link").style.display = has ? "" : "none";
+  el("extras").style.display = has ? "" : "none";
+  el("week").innerHTML = ""; el("recipes").innerHTML = "";
+  if (!has) return;
+  const today = todayStr();
+  el("week").innerHTML = plan.days.map(d => `
+    <div class="day ${d.date === today ? "today" : ""} ${d.away ? "away" : ""}">
+      <h4>${d.date === today ? "Today, " : ""}${fmtDate(d.date)} <label class="small" style="flex-direction:row; align-items:center; gap:4px; letter-spacing:.06em"><input type="checkbox" ${d.away ? "checked" : ""} onchange="setAway(${d.id}, this.checked)"> away</label></h4>
+      ${d.slots.map(s => { const m = meals.find(x => x.id === s.meal_id); return `<div class="slot"><span class="k">${SLOT_LABEL[s.slot]}</span>${m ? ` <a class="small" href="recipes.html?meal=${m.id}" style="float:right">recipe</a>` : ""}
+        <select onchange="swap(${s.id}, this.value)">${meals.filter(m => m.meal_type === SLOT_TYPE[s.slot] && (m.allowed || m.id === s.meal_id)).map(m => `<option value="${m.id}" ${m.id === s.meal_id ? "selected" : ""}>${esc(m.name)}${m.portable ? " ✈" : ""}</option>`).join("")}</select>
+        ${m ? `<div class="ing muted">${m.ingredients.map(i => `${fmtQty(i.qty)} ${esc(unitName(i.unit, i.qty))} ${esc(i.name)}`).join(", ")}</div><div class="mac">${macLine(m.nutrition)}</div>` : ""}</div>`; }).join("")}
+      <div class="daytotal">${macLine(d.nutrition, true)}</div>
+    </div>`).join("");
+  renderNutrition();
+  const tc = document.querySelector(".day.today");
+  if (tc && window.innerWidth <= 760) tc.scrollIntoView({ block: "start", behavior: "smooth" });
+  const used = new Map();
+  plan.days.forEach(d => d.slots.forEach(s => { if (s.meal_id) used.set(s.meal_id, (used.get(s.meal_id) || 0) + 1); }));
+  el("recipes").innerHTML = [...used.keys()].map(id => meals.find(m => m.id === id)).filter(Boolean).sort((a, b) => a.meal_type.localeCompare(b.meal_type) || a.name.localeCompare(b.name)).map(m => `
+    <details><summary><a href="recipes.html?meal=${m.id}">${esc(m.name)}</a> <span class="muted small">${m.meal_type}, ${used.get(m.id)}× this week${m.batch ? ", batch" : ""}${m.portable ? ", portable" : ""}</span></summary>
+      <p class="small">${esc(m.instructions) || "<span class='muted'>No instructions.</span>"}</p>
+      <p class="small muted">Per serving: ${m.ingredients.map(i => `${i.qty} ${i.unit} ${esc(i.name)}`).join(", ")}</p>
+      <p class="small muted">${macLine(m.nutrition, true)}</p></details>`).join("");
+  loadExtras();
+}
+function fmtQty(q) { return Number.isInteger(q) ? q : (q === 0.5 ? "½" : q === 0.25 ? "¼" : q === 1.5 ? "1½" : q === 2.5 ? "2½" : q); }
+function macLine(n, long) {
+  if (!n) return "";
+  const star = n.complete === false ? "*" : "";
+  return long ? `${n.kcal}${star} kcal · ${n.protein} g protein · ${n.fat} g fat · ${n.carbs} g net carbs`
+              : `${n.kcal}${star} kcal · ${n.protein}P · ${n.fat}F · ${n.carbs}C`;
+}
+let nutriChart = null;
+function renderNutrition() {
+  const days = plan.days;
+  el("nutri").style.display = "";
+  const labels = days.map(d => fmtDate(d.date).replace(/,.*$/, ""));
+  const pick = k => days.map(d => d.nutrition ? d.nutrition[k] : 0);
+  const data = { labels, datasets: [
+    { label: "Protein", data: pick("protein"), backgroundColor: "#7a4219", stack: "g" },
+    { label: "Fat", data: pick("fat"), backgroundColor: "#a8740a", stack: "g" },
+    { label: "Net carbs", data: pick("carbs"), backgroundColor: "#a63a2b", stack: "g" },
+  ] };
+  if (nutriChart) { nutriChart.data = data; nutriChart.update(); }
+  else nutriChart = new Chart(el("nutri-chart"), { type: "bar", data, options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { footer: items => `${days[items[0].dataIndex].nutrition?.kcal ?? 0} kcal` } } },
+    scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, title: { display: true, text: "grams" } } } } });
+  const avg = k => Math.round(days.reduce((a, d) => a + (d.nutrition ? d.nutrition[k] : 0), 0) / days.length);
+  el("nutri-table").innerHTML = `<tr><th style="text-align:left">Day</th><th>kcal</th><th>Protein</th><th>Fat</th><th>Net carbs</th></tr>` +
+    days.map(d => `<tr><td>${fmtDate(d.date)}</td><td>${d.nutrition?.kcal ?? "–"}</td><td>${d.nutrition?.protein ?? "–"} g</td><td>${d.nutrition?.fat ?? "–"} g</td><td>${d.nutrition?.carbs ?? "–"} g</td></tr>`).join("") +
+    `<tr style="font-weight:600"><td>Average</td><td>${avg("kcal")}</td><td>${avg("protein")} g</td><td>${avg("fat")} g</td><td>${avg("carbs")} g</td></tr>`;
+}
+async function loadExtras() {
+  const x = await api(`/api/plans/${plan.id}/batch`);
+  el("batch").innerHTML = x.batch.length ? `<p class="muted">Make these on Sunday; they cover ${x.batch.reduce((a, b) => a + b.servings, 0)} meals this week.</p>` +
+    x.batch.map(b => `<details><summary>${esc(b.name)} <span class="muted">${b.servings} serving${b.servings === 1 ? "" : "s"}</span></summary><p>${esc(b.instructions)}</p></details>`).join("") : `<span class="muted">No batch meals this week.</span>`;
+  el("cooler").innerHTML = x.cooler.length ? x.cooler.map(c => `<p><strong>${fmtDate(c.date)}</strong><br>${c.pack.map(esc).join("<br>")}<br><span class="muted">plus a backup can of tuna, water, and an ice pack</span></p>`).join("") : "Mark a day as away to see what to pack.";
+}
+async function setAway(dayId, away) {
+  try { plan = await api(`/api/plans/days/${dayId}`, { method: "PATCH", body: { away } }); render();
+    flash("msg", away ? "Marked away. Regenerate to re-pick portable meals for that day, or swap them by hand." : "Marked home."); }
+  catch (e) { flash("msg", e.message, "err"); }
+}
+async function swap(slotId, mealId) {
+  try { plan = await api(`/api/plans/slots/${slotId}`, { method: "PATCH", body: { meal_id: mealId || null } }); render(); }
+  catch (e) { flash("msg", e.message, "err"); }
+}
+async function generate(replace, fromPantry) {
+  const away = plan ? plan.days.filter(d => d.away).map(d => d.date) : [];
+  if (replace && !confirm("Replace this week's plan? Your swaps will be lost; away days are kept.")) return;
+  try {
+    const body = { week_start: iso(monday(anchor)), away_days: away, replace };
+    if (fromPantry) {
+      const before = new Date(monday(anchor)); before.setDate(before.getDate() - 7);
+      const prev = await api(`/api/plans/week/${iso(before)}`);
+      if (!prev) { flash("msg", "The week before has no plan to take groceries from.", "err"); return; }
+      body.pantry_from = prev.id;
+    }
+    plan = await api("/api/plans", { method: "POST", body }); render();
+    flash("msg", fromPantry ? (plan.to_buy.length ? `Plan ready from what you have. Still to buy: ${plan.to_buy.map(esc).join(", ")}.` : "Plan ready, all from what you already have.") : "Plan ready.");
+  }
+  catch (e) { flash("msg", e.message, "err"); }
+}
+el("generate").addEventListener("click", () => generate(false));
+el("from-pantry").addEventListener("click", () => generate(false, true));
+el("regenerate").addEventListener("click", () => generate(true));
+el("prev").addEventListener("click", () => { anchor.setDate(anchor.getDate() - 7); load(); });
+el("next").addEventListener("click", () => { anchor.setDate(anchor.getDate() + 7); load(); });
+load().catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

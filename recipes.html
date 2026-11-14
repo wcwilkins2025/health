@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recipes · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+<style>
+  .layout { display: grid; grid-template-columns: 300px 1fr; gap: 14px; align-items: start; }
+  .rlist a { display: flex; justify-content: space-between; gap: 8px; padding: 7px 8px; border-bottom: 1px solid var(--line); color: var(--ink); border-radius: var(--radius); }
+  .rlist a.active { background: var(--soft-accent); color: var(--accent); }
+  .rlist a .muted { font-size: 12px; white-space: nowrap; }
+  .rlist h3 { margin: 12px 0 4px; }
+  .recipe h2.name { font-size: 28px; letter-spacing: .04em; color: var(--ink); border: 0; padding: 0; margin: 0 0 4px; }
+  .recipe .tags { margin: 0 0 12px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .recipe ol { padding-left: 22px; margin: 6px 0 14px; }
+  .recipe li { margin: 4px 0; }
+  .recipe ul.ing { list-style: none; padding: 0; margin: 6px 0 14px; }
+  .recipe ul.ing li { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+  .recipe ul.ing li .q { min-width: 90px; font-variant-numeric: tabular-nums; color: var(--accent); font-family: var(--display); font-weight: 600; font-size: 15px; letter-spacing: .04em; }
+  .recipe .nut { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+  #search { width: 100%; }
+  @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } .rlist.hide { display: none; } }
+  @media print { header.top, .rlist, #back, .toggle { display: none !important; } .layout { display: block; } .card { box-shadow: none; border: 0; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Recipes</h1>
+  <div id="msg" class="msg" style="display:none"></div>
+  <div class="layout">
+    <div class="card rlist" id="list-card">
+      <input id="search" placeholder="Search recipes or ingredients" autocomplete="off">
+      <div id="list"></div>
+    </div>
+    <div class="card recipe" id="detail"><p class="muted">Pick a recipe.</p></div>
+  </div>
+</main>
+<script>
+const TYPE_LABEL = { breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner", snack: "Snacks" };
+let meals = [], current = null;
+function fmtQty(q) { return Number.isInteger(q) ? q : (q === 0.5 ? "½" : q === 0.25 ? "¼" : q === 0.75 ? "¾" : q === 1.5 ? "1½" : q === 2.5 ? "2½" : q); }
+function qty(i) { return `${fmtQty(i.qty)} ${unitName(i.unit, i.qty)}`; }
+function steps(text) {
+  // One sentence per step. Keeps "350F for 20-25 min." together because the split needs a capital letter after the period.
+  return text.split(/(?<=[.!?])\s+(?=[A-Z])/).map(s => s.trim()).filter(Boolean);
+}
+function renderList() {
+  const q = el("search").value.trim().toLowerCase();
+  const hit = m => !q || m.name.toLowerCase().includes(q) || m.ingredients.some(i => i.name.toLowerCase().includes(q));
+  el("list").innerHTML = Object.keys(TYPE_LABEL).map(t => {
+    const ms = meals.filter(m => m.meal_type === t && hit(m));
+    if (!ms.length) return "";
+    return `<h3>${TYPE_LABEL[t]}</h3>` + ms.map(m => `<a href="?meal=${m.id}" data-id="${m.id}" class="${current && current.id === m.id ? "active" : ""} ${m.enabled ? "" : "muted"}">${esc(m.name)}<span class="muted">${m.nutrition ? m.nutrition.kcal + " kcal" : ""}${m.portable ? " ✈" : ""}</span></a>`).join("");
+  }).join("") || `<p class="muted">Nothing matches.</p>`;
+}
+function renderDetail() {
+  const m = current;
+  if (!m) { el("detail").innerHTML = `<p class="muted">Pick a recipe.</p>`; return; }
+  const n = m.nutrition;
+  el("detail").innerHTML = `
+    <a id="back" href="recipes.html" class="small" style="display:none">◀ All recipes</a>
+    <h2 class="name">${esc(m.name)}</h2>
+    <div class="tags">
+      <span class="pill ${m.meal_type === "snack" ? "yellow" : "green"}">${TYPE_LABEL[m.meal_type].replace(/s$/, "")}</span>
+      ${m.portable ? `<span class="pill green">Portable</span>` : ""}${m.batch ? `<span class="pill yellow">Batch cook</span>` : ""}
+      ${m.locked ? `<span class="pill red">Uses a locked food</span>` : ""}
+      <span style="flex:1"></span>
+      <label class="check toggle" style="border:0; padding:0; font-size:14px"><input type="checkbox" ${m.enabled ? "checked" : ""} onchange="toggle(this.checked)"> In the rotation</label>
+      <button class="ghost small" onclick="window.print()">Print</button>
+    </div>
+    <h2>Per serving</h2>
+    <ul class="ing">${m.ingredients.map(i => `<li><span class="q">${qty(i)}</span><span>${esc(i.name)}${i.unlocked ? "" : ` <span class="pill red">locked</span>`}</span></li>`).join("")}</ul>
+    <h2>Method</h2>
+    ${m.instructions ? `<ol>${steps(m.instructions).map(s => `<li>${esc(s)}</li>`).join("")}</ol>` : `<p class="muted">No cooking. Put it on a plate.</p>`}
+    ${n ? `<h2>Nutrition per serving</h2><div class="nut">
+      <div class="stat"><span class="label">Calories</span><span class="value">${n.kcal}</span></div>
+      <div class="stat"><span class="label">Protein</span><span class="value">${n.protein}<span class="sub"> g</span></span></div>
+      <div class="stat"><span class="label">Fat</span><span class="value">${n.fat}<span class="sub"> g</span></span></div>
+      <div class="stat"><span class="label">Net carbs</span><span class="value">${n.carbs}<span class="sub"> g</span></span></div></div>
+      <p class="small muted" style="margin:8px 0 0">Reference values, raw weight for meat and fish, net carbs. About 10 percent either way.</p>` : ""}`;
+  if (window.innerWidth <= 760) { el("back").style.display = "inline"; el("list-card").classList.add("hide"); }
+  document.title = `${m.name} · Recipes`;
+}
+async function toggle(enabled) {
+  try { const r = await api(`/api/meals/${current.id}`, { method: "PATCH", body: { enabled } }); current.enabled = r.enabled; renderList();
+    flash("msg", enabled ? "Back in the rotation; the planner can pick it again." : "Out of the rotation; the planner will skip it. Existing plans keep it until you swap."); }
+  catch (e) { flash("msg", e.message, "err"); }
+}
+function pick(id, push) {
+  current = meals.find(m => m.id === id) || null;
+  if (push) history.pushState({ id }, "", current ? `?meal=${id}` : "recipes.html");
+  renderList(); renderDetail();
+}
+el("list").addEventListener("click", ev => { const a = ev.target.closest("a[data-id]"); if (!a) return; ev.preventDefault(); pick(a.dataset.id, true); });
+el("search").addEventListener("input", renderList);
+window.addEventListener("popstate", () => { const id = new URLSearchParams(location.search).get("meal"); if (id) pick(id, false); else { current = null; el("list-card").classList.remove("hide"); renderList(); renderDetail(); } });
+document.addEventListener("click", ev => { if (ev.target.id === "back") { ev.preventDefault(); current = null; el("list-card").classList.remove("hide"); history.pushState({}, "", "recipes.html"); renderList(); renderDetail(); } });
+(async () => {
+  meals = await api("/api/meals");
+  meals.forEach(m => { m.locked = m.ingredients.some(i => !i.unlocked); });
+  const id = new URLSearchParams(location.search).get("meal");
+  if (id) pick(id, false); else renderList();
+})().catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Code · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+</head>
+<body>
+<main>
+  <div id="msg" class="msg" style="display:none"></div>
+  <div id="empty" class="card" style="display:none">No code saved yet. Put yours on the <a href="account.html">Account page</a>: your own words about why you are doing this, kept with your account and shown only to you.</div>
+  <iframe id="frame" title="My Code" sandbox="allow-same-origin" style="display:none;width:100%;border:0;min-height:80vh;background:var(--card)"></iframe>
+  <div id="text" class="card" style="display:none;white-space:pre-wrap"></div>
+</main>
+<script>
+HT.ready.then(S => {
+  const code = HT.E.get(S, "my_code");
+  if (!code) { el("empty").style.display = ""; return; }
+  if (/<(html|body|div|p|h1)[\s>]/i.test(code)) {
+    const f = el("frame"); f.srcdoc = code; f.style.display = "";
+    f.addEventListener("load", () => { try { f.style.height = (f.contentDocument.documentElement.scrollHeight + 20) + "px"; } catch (e) {} });
+  } else { el("text").textContent = code; el("text").style.display = ""; }
+}).catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

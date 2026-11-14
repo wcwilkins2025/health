@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Welcome · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+</head>
+<body>
+<main>
+  <div class="card auth" style="max-width:520px">
+    <h1>Welcome</h1>
+    <p>A few numbers to start. Everything here can be changed later on the Weight page.</p>
+    <div id="msg" class="msg" style="display:none"></div>
+    <form id="f">
+      <label>Your name <input id="name" maxlength="80" required></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <label>Weight today (lb) <input type="number" id="weight" step="0.1" min="60" max="700" required></label>
+        <label>Goal weight (lb) <input type="number" id="target" step="0.1" min="60" max="700" required></label>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <label>Sex <select id="sex"><option value="male">Male</option><option value="female">Female</option></select></label>
+        <label>Age <input type="number" id="age" min="10" max="110" required></label>
+        <label>Height <span style="display:flex;gap:4px"><input type="number" id="ft" min="3" max="8" placeholder="ft" required style="width:50%"><input type="number" id="inch" min="0" max="11" placeholder="in" required style="width:50%"></span></label>
+      </div>
+      <label>Target date <span class="muted small">(optional; the forecast sizes the week to it)</span> <input type="date" id="target_date"></label>
+      <button type="submit">Start</button>
+    </form>
+    <p class="small muted" style="margin:12px 0 0">The forecast uses sex, age and height for resting calories. Nothing here is medical advice; blood pressure or blood sugar medicine changes go through your doctor.</p>
+  </div>
+</main>
+<script>
+(async () => {
+  const me = await api("/api/me");
+  if (me.setup_done) { location.replace("index.html"); return; }
+  el("name").value = me.name || "";
+  el("f").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const weight = Number(el("weight").value), target = Number(el("target").value);
+    if (!(target < weight)) { flash("msg", "The goal should be below today's weight.", "err"); return; }
+    const height_in = Number(el("ft").value) * 12 + Number(el("inch").value);
+    try {
+      await api("/api/me", { method: "PATCH", body: { name: el("name").value.trim() } });
+      await api("/api/settings", { method: "PATCH", body: {
+        start_weight: weight, target_weight: target, start_date: todayStr(), sex: el("sex").value, age: el("age").value,
+        height_in: String(height_in), target_date: el("target_date").value || "", setup_done: "1" } });
+      await api("/api/weight", { method: "POST", body: { date: todayStr(), weight } });
+      location.replace("index.html");
+    } catch (e) { flash("msg", e.message, "err"); }
+  });
+})().catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

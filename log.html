@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Log · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+</head>
+<body>
+<main>
+  <h1>Log <span class="muted small"><input type="date" id="date" style="font-size:15px;padding:4px 8px"></span></h1>
+  <div id="msg" class="msg" style="display:none"></div>
+
+  <div id="sessions"></div>
+
+  <div class="card" id="start-card" style="margin-bottom:14px">
+    <h2 id="start-title">Start a workout</h2>
+    <div class="starts" id="starts"></div>
+    <p class="small muted" style="margin:10px 0 0">Tap the workout you are doing. The one with the yellow ring is what this week's plan has for today. Every exercise shows last time's sets as the numbers to beat; a rest timer starts after each set.</p>
+  </div>
+
+  <details class="card" id="wk-card" style="margin-bottom:14px">
+    <summary style="cursor:pointer"><h2 style="display:inline">Your workouts</h2> <span class="muted small">exercises, sets and reps</span></summary>
+    <div id="wk-edit" class="wk-edit" style="margin-top:10px"></div>
+    <button class="ghost small" id="wk-new" style="margin-top:10px">New workout</button>
+    <p class="small muted" style="margin:10px 0 0">These names are what the rotation on the Training page uses. Rename a workout and its history follows.</p>
+  </details>
+
+  <datalist id="ex-names"></datalist>
+</main>
+<div class="timer" id="timer" style="display:none"></div>
+<script>
+let D = null, ds = new URLSearchParams(location.search).get("date") || todayStr(), pending = null, timer = null, timerEnd = 0;
+const REST_KEY = "wt_rest_seconds";
+const restSeconds = () => Number(localStorage.getItem(REST_KEY) || 90);
+const fmt = n => n == null || n === "" ? "" : Number(n);
+// a JS string literal safe inside an HTML attribute (the parser decodes the entities before JS sees it)
+const jsArg = x => esc(JSON.stringify(x));
+const setStr = s => `${s.weight == null ? "body" : fmt(s.weight)}×${s.reps ?? "?"}`;
+
+async function load() {
+  D = await api(`/api/log/${ds}`);
+  el("date").value = ds;
+  el("ex-names").innerHTML = D.exercises.map(x => `<option value="${esc(x)}">`).join("");
+  render();
+}
+
+function sessionsToShow() {
+  const out = D.sessions.map(s => ({ ...s }));
+  if (pending && !out.some(s => s.session_ms === pending.session_ms)) out.push({ ...pending, exercises: [], sets: 0, volume: 0 });
+  return out;
+}
+
+function render() {
+  const shown = sessionsToShow();
+  el("sessions").innerHTML = shown.map(renderSession).join("");
+  const anyOpen = shown.length > 0;
+  el("start-title").textContent = anyOpen ? "Start another workout" : "Start a workout";
+  el("starts").innerHTML = D.workouts.map(w => `<button type="button" class="${w.workout === D.planned && !anyOpen ? "planned" : ""}" onclick="start(${jsArg(w.workout)})">${esc(w.workout)}${w.workout === D.planned && !anyOpen ? `<br><span class="small" style="font-weight:400;letter-spacing:0;text-transform:none">today's plan</span>` : ""}</button>`).join("") +
+    `<button type="button" class="ghost" onclick="startOther()">Other…</button>`;
+  if (anyOpen) el("start-card").querySelector("p").style.display = "none";
+  renderEditor();
+}
+
+function template(workout) { return (D.workouts.find(w => w.workout === workout) || { exercises: [] }).exercises; }
+
+function renderSession(s) {
+  // the workout's exercises in order, then anything else done in this session
+  const tpl = template(s.workout);
+  const names = [...tpl.map(e => e.exercise)];
+  for (const e of s.exercises) if (!names.includes(e.exercise)) names.push(e.exercise);
+  const when = new Date(s.session_ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `<div class="card" style="margin-bottom:14px" data-ses="${s.session_ms}">
+    <div class="ses-head"><h2>${esc(s.workout || "Workout")}</h2><span class="muted small">${when}${s.sets ? ` · ${s.sets} sets · ${Math.round(s.volume).toLocaleString()} lb` : ""}</span>
+      <a href="training.html"><button type="button" class="small">Done</button></a>
+      <button type="button" class="small danger" onclick="removeSession(${s.session_ms})">Delete</button></div>
+    ${names.map(n => renderExercise(s, n, tpl.find(e => e.exercise === n), s.exercises.find(e => e.exercise === n))).join("")}
+    <div class="ex" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input list="ex-names" id="addex-${s.session_ms}" placeholder="Another exercise" style="flex:1;min-width:160px">
+      <button type="button" class="ghost small" onclick="addExercise(${s.session_ms})">Add exercise</button>
+    </div>
+  </div>`;
+}
+
+function renderExercise(s, name, tplEx, done) {
+  const sets = done ? done.sets : [];
+  const last = (done && done.last) || (tplEx && tplEx.last);
+  const target = tplEx && tplEx.target_sets ? `${tplEx.target_sets} × ${tplEx.target_reps ?? "?"}` : (tplEx && tplEx.note ? tplEx.note : "");
+  return `<div class="ex">
+    <div class="ex-head"><strong>${esc(name)}</strong>${target ? `<span class="muted small">${esc(target)}</span>` : ""}
+      ${last ? `<span class="last">last ${fmtDate(last.date)}: ${last.sets.map(setStr).join(", ")}</span>` : `<span class="last">first time</span>`}</div>
+    ${sets.map((x, i) => `<div class="setrow"><span class="n">${i + 1}</span>
+      <input type="number" inputmode="decimal" step="0.5" value="${x.weight ?? ""}" placeholder="lb" onchange="saveSet(${x.id}, 'weight', this.value)">
+      <span class="x">×</span>
+      <input type="number" inputmode="numeric" step="1" value="${x.reps ?? ""}" placeholder="reps" onchange="saveSet(${x.id}, 'reps', this.value)">
+      <button type="button" class="small danger" onclick="removeSet(${x.id})">✕</button></div>`).join("")}
+    <button type="button" class="addset ghost" onclick="addSet(${s.session_ms}, ${jsArg(s.workout)}, ${jsArg(name)})">Add set${nextGuess(sets, last, tplEx) ? ` · ${nextGuess(sets, last, tplEx)}` : ""}</button>
+  </div>`;
+}
+
+function guess(sets, last, tplEx) {
+  // the next set: repeat the last one logged; before that, last time's set in this position; else the target
+  if (sets.length) { const p = sets[sets.length - 1]; return { weight: p.weight, reps: p.reps }; }
+  if (last && last.sets.length) return { weight: last.sets[0].weight, reps: last.sets[0].reps };
+  return { weight: null, reps: tplEx ? tplEx.target_reps : null };
+}
+function nextGuess(sets, last, tplEx) {
+  if (!sets.length && last && last.sets.length) return setStr(last.sets[0]);
+  if (sets.length && last && last.sets[sets.length]) return setStr(last.sets[sets.length]);
+  const g = guess(sets, last, tplEx);
+  return g.weight != null || g.reps != null ? setStr(g) : "";
+}
+
+function start(workout) {
+  pending = { session_ms: ds === todayStr() ? Date.now() : new Date(ds + "T12:00").getTime(), workout };
+  render();
+  const card = document.querySelector(`[data-ses="${pending.session_ms}"]`);
+  if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function startOther() { const w = prompt("Workout name"); if (w && w.trim()) start(w.trim()); }
+
+async function addSet(session_ms, workout, exercise) {
+  const s = sessionsToShow().find(x => x.session_ms === session_ms);
+  const done = s && s.exercises.find(e => e.exercise === exercise);
+  const tplEx = template(workout).find(e => e.exercise === exercise);
+  const last = (done && done.last) || (tplEx && tplEx.last);
+  const sets = done ? done.sets : [];
+  const g = (!sets.length || !last || !last.sets[sets.length]) ? guess(sets, last, tplEx) : last.sets[sets.length];
+  try {
+    await api("/api/log/sets", { method: "POST", body: { session_ms, workout, exercise, weight: g.weight, reps: g.reps } });
+    if (pending && pending.session_ms === session_ms) pending = null;
+    await load();
+    startTimer();
+    const inp = document.querySelector(`[data-ses="${session_ms}"] .setrow:last-of-type input`);
+  } catch (e) { flash("msg", e.message, "err"); }
+}
+async function saveSet(id, field, value) {
+  const body = {}; body[field] = value === "" ? (field === "weight" ? 0 : 0) : Number(value);
+  try { await api(`/api/log/sets/${id}`, { method: "PATCH", body }); await load(); } catch (e) { flash("msg", e.message, "err"); }
+}
+async function removeSet(id) {
+  try { await api(`/api/log/sets/${id}`, { method: "DELETE" }); await load(); } catch (e) { flash("msg", e.message, "err"); }
+}
+async function removeSession(session_ms) {
+  if (pending && pending.session_ms === session_ms) { pending = null; render(); return; }
+  if (!confirm("Delete this whole session?")) return;
+  try { await api(`/api/log/sessions/${session_ms}`, { method: "DELETE" }); await load(); } catch (e) { flash("msg", e.message, "err"); }
+}
+async function addExercise(session_ms) {
+  const inp = el(`addex-${session_ms}`), name = inp.value.trim();
+  if (!name) return;
+  const s = sessionsToShow().find(x => x.session_ms === session_ms);
+  await addSet(session_ms, s.workout, name);
+}
+
+// ---- rest timer ----
+function startTimer() {
+  clearInterval(timer);
+  timerEnd = Date.now() + restSeconds() * 1000;
+  const t = el("timer"); t.style.display = ""; t.className = "timer";
+  const tick = () => {
+    const left = Math.ceil((timerEnd - Date.now()) / 1000);
+    if (left <= 0) { t.className = "timer done"; t.innerHTML = `Go <small>tap to hide</small>`; clearInterval(timer); if (navigator.vibrate) navigator.vibrate([200, 100, 200]); return; }
+    t.innerHTML = `Rest ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} <small>tap to skip · hold to set</small>`;
+  };
+  tick(); timer = setInterval(tick, 250);
+}
+el("timer").addEventListener("click", () => { clearInterval(timer); el("timer").style.display = "none"; });
+let hold;
+el("timer").addEventListener("pointerdown", () => { hold = setTimeout(() => { const v = prompt("Rest between sets, in seconds", restSeconds()); if (v && Number(v) > 0) localStorage.setItem(REST_KEY, String(Math.round(Number(v)))); }, 700); });
+el("timer").addEventListener("pointerup", () => clearTimeout(hold));
+
+// ---- workouts editor ----
+let editing = {};   // workout name -> working copy of exercises
+function renderEditor() {
+  const names = D.workouts.map(w => w.workout);
+  for (const n of Object.keys(editing)) if (!names.includes(n) && !editing[n].isNew) delete editing[n];
+  el("wk-edit").innerHTML = [...D.workouts.map(w => w.workout), ...Object.keys(editing).filter(n => editing[n].isNew)].map(name => {
+    const ed = editing[name];
+    if (!ed) return `<div style="display:flex;gap:8px;align-items:baseline;margin-top:8px;flex-wrap:wrap"><strong>${esc(name)}</strong><span class="muted small" style="flex:1">${template(name).map(e => esc(e.exercise)).join(", ") || "no exercises"}</span><button type="button" class="ghost small" onclick="editWorkout(${jsArg(name)})">Edit</button></div>`;
+    return `<div class="card" style="margin-top:10px;padding:12px">
+      <label>Name <input value="${esc(ed.name)}" onchange="editing[${jsArg(name)}].name = this.value"></label>
+      <div class="row muted small" style="margin-top:8px"><span>Exercise</span><span>Sets</span><span>Reps</span><span></span></div>
+      ${ed.exercises.map((e, i) => `<div class="row">
+        <input list="ex-names" value="${esc(e.exercise)}" onchange="editing[${jsArg(name)}].exercises[${i}].exercise = this.value">
+        <input type="number" inputmode="numeric" min="1" value="${e.target_sets ?? ""}" onchange="editing[${jsArg(name)}].exercises[${i}].target_sets = this.value ? Number(this.value) : null">
+        <input type="number" inputmode="numeric" min="1" value="${e.target_reps ?? ""}" onchange="editing[${jsArg(name)}].exercises[${i}].target_reps = this.value ? Number(this.value) : null">
+        <span class="mv"><button type="button" class="ghost small" onclick="moveEx(${jsArg(name)}, ${i}, -1)">▲</button><button type="button" class="ghost small" onclick="moveEx(${jsArg(name)}, ${i}, 1)">▼</button><button type="button" class="small danger" onclick="editing[${jsArg(name)}].exercises.splice(${i}, 1); renderEditor()">✕</button></span>
+      </div>`).join("")}
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button type="button" class="ghost small" onclick="editing[${jsArg(name)}].exercises.push({exercise: '', target_sets: 3, target_reps: 10}); renderEditor()">Add exercise</button>
+        <span style="flex:1"></span>
+        <button type="button" class="small" onclick="saveWorkout(${jsArg(name)})">Save</button>
+        <button type="button" class="ghost small" onclick="delete editing[${jsArg(name)}]; renderEditor()">Cancel</button>
+        ${ed.isNew ? "" : `<button type="button" class="small danger" onclick="deleteWorkout(${jsArg(name)})">Delete workout</button>`}
+      </div>
+    </div>`;
+  }).join("") || `<p class="muted" style="margin:8px 0 0">No workouts yet. Make one.</p>`;
+}
+function editWorkout(name) {
+  editing[name] = { name, exercises: template(name).map(e => ({ exercise: e.exercise, target_sets: e.target_sets, target_reps: e.target_reps })) };
+  el("wk-card").open = true; renderEditor();
+}
+function moveEx(name, i, d) { const a = editing[name].exercises, j = i + d; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; renderEditor(); }
+async function saveWorkout(name) {
+  const ed = editing[name];
+  const exercises = ed.exercises.filter(e => e.exercise.trim());
+  if (!ed.name.trim()) { flash("msg", "Give the workout a name.", "err"); return; }
+  if (!exercises.length) { flash("msg", "Add at least one exercise.", "err"); return; }
+  try {
+    const target = ed.isNew ? ed.name.trim() : name;
+    await api(`/api/workouts/${encodeURIComponent(target)}`, { method: "PUT", body: { exercises, rename: ed.isNew ? null : ed.name.trim() } });
+    delete editing[name]; flash("msg", "Saved."); await load();
+  } catch (e) { flash("msg", e.message, "err"); }
+}
+async function deleteWorkout(name) {
+  if (!confirm(`Delete the workout "${name}"? Logged sessions keep their history.`)) return;
+  try { await api(`/api/workouts/${encodeURIComponent(name)}`, { method: "DELETE" }); delete editing[name]; await load(); } catch (e) { flash("msg", e.message, "err"); }
+}
+el("wk-new").addEventListener("click", () => {
+  let n = "New workout", i = 2; while (D.workouts.some(w => w.workout === n) || editing[n]) n = `New workout ${i++}`;
+  editing[n] = { name: "", exercises: [{ exercise: "", target_sets: 3, target_reps: 10 }], isNew: true }; renderEditor();
+});
+
+el("date").addEventListener("change", () => { ds = el("date").value || todayStr(); pending = null; history.replaceState(null, "", ds === todayStr() ? "log.html" : `log.html?date=${ds}`); load().catch(e => flash("msg", e.message, "err")); });
+load().catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

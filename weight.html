@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weight · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+</head>
+<body>
+<main>
+  <h1>Weight</h1>
+  <div id="msg" class="msg" style="display:none"></div>
+
+  <div class="card" style="margin-bottom:14px">
+    <form class="row" id="form">
+      <label>Date <input type="date" id="date" required></label>
+      <label>Weight (lbs) <input type="number" id="weight" step="0.1" min="50" max="800" required autofocus></label>
+      <label style="flex:1">Note <input type="text" id="note" placeholder="optional"></label>
+      <button type="submit">Save</button>
+    </form>
+    <p class="small muted" style="margin:8px 0 0">One entry per day; saving again on the same date replaces it. Morning, after the bathroom, before food.</p>
+  </div>
+
+  <div class="card span" style="margin-bottom:14px">
+    <div class="stats">
+      <div class="stat"><span class="label">Current</span><span class="value" id="s-current">–</span><span class="sub" id="s-current-sub"></span></div>
+      <div class="stat"><span class="label">Lost</span><span class="value" id="s-lost">–</span><span class="sub">lb since day one</span></div>
+      <div class="stat"><span class="label">To go</span><span class="value" id="s-togo">–</span><span class="sub" id="s-togo-sub"></span></div>
+      <div class="stat"><span class="label">Pace</span><span class="value" id="s-rate">–</span><span class="sub">lb / week, last 28 days</span></div>
+      <div class="stat"><span class="label">Vs the line</span><span class="value" id="s-ahead">–</span><span class="sub" id="s-ahead-sub">no weigh-ins yet</span></div>
+      <div class="stat"><span class="label" id="s-date-label">Forecast</span><span class="value" id="s-date">–</span><span class="sub" id="s-weeks"></span></div>
+      <div class="stat"><span class="label">Goal</span><span class="value" id="s-goal">–</span><span class="sub" id="s-goal-sub"></span></div>
+    </div>
+  </div>
+
+  <div class="card span" style="margin-bottom:14px">
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:6px">
+      <h2 style="margin:0; border:0; padding:0">Weight, forecast and goal</h2>
+      <span style="flex:1"></span>
+      <div class="tabs" style="margin:0"><button class="small active" data-view="all">Whole journey</button><button class="small" data-view="30">Last 30 days</button></div>
+    </div>
+    <div class="legend"><span style="--c:#1c1f22">Weigh-ins</span><span style="--c:#5a5f64">7-day average</span><span style="--c:#7a4219">Forecast from start</span><span style="--c:#b8863b">Forecast from last weigh-in</span><span style="--c:#8a8f94">Goal line</span><span style="--c:#a63a2b" id="leg-target">Target</span></div>
+    <div class="chart" style="height:clamp(260px, 45vh, 520px)"><canvas id="chart"></canvas></div>
+    <p id="verdict" style="margin:12px 0 0"></p>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; align-items:center">
+      <a class="small" href="training.html">Training week: lifts, walks and rides →</a>
+      <span style="flex:1"></span>
+      <button class="ghost small" id="fit-intake">Fit the calories to the date</button>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Entries</h2>
+      <table><thead><tr><th>Date</th><th class="num">Weight</th><th class="num">Change</th><th class="num">Vs line</th><th>Note</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+    </div>
+    <div class="card">
+      <h2>Forecast assumptions</h2>
+      <form class="row" id="aform">
+        <label>Target date <input type="date" id="a-target-date"></label>
+        <label>Sex <select id="a-sex"><option value="male">Male</option><option value="female">Female</option></select></label>
+        <label>Age <input type="number" id="a-age" min="18" max="100" step="1"></label>
+        <label>Height (in) <input type="number" id="a-height" min="48" max="90" step="0.5"></label>
+        <label>Day-to-day <select id="a-activity">
+          <option value="sedentary">Sedentary</option><option value="light">Light</option><option value="moderate">Moderate</option><option value="active">Active</option></select></label>
+        <label>Daily calories <input type="number" id="a-kcal" min="800" max="6000" step="25" placeholder=""></label>
+        <label>Water, first 10 days (lb) <input type="number" id="a-water" min="0" max="20" step="0.5"></label>
+        <button type="submit">Save</button>
+        <button type="button" class="ghost" id="reset-auto">Calories from the plan</button>
+      </form>
+      <p class="small muted" style="margin:10px 0 0">Burn is the Mifflin-St Jeor resting rate at the current weight, times the day-to-day factor, plus the lifting, walking and riding set on <a href="training.html">Training</a>. It falls as you get lighter, so the line bends. 3,500 kcal is one pound. Models run 10 to 20 percent off; the scale wins.</p>
+    </div>
+  </div>
+</main>
+<script>
+let chart = null, fc = null, ws = null, view = "all";
+function weeksBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 6048e5); }
+function hours(min) { return min >= 60 ? `${Math.floor(min / 60)} h${min % 60 ? " " + (min % 60) + " min" : ""}` : `${min} min`; }
+function fillForm(a) {
+  el("a-target-date").value = a.target_date || "";
+  el("a-sex").value = a.sex; el("a-age").value = a.age; el("a-height").value = a.height_in; el("a-activity").value = a.activity;
+  el("a-kcal").value = a.daily_kcal_override ?? ""; el("a-kcal").placeholder = a.plan_kcal != null ? `auto: ${a.plan_kcal} from the plan` : "auto: 2000";
+  el("a-water").value = a.water_loss_lb;
+}
+function renderStats() {
+  const a = fc.assumptions, s = ws;
+  el("s-current").textContent = s.current ?? "–";
+  el("s-current-sub").textContent = s.entries.length ? `${fmtDate(s.entries[s.entries.length - 1].date)} · started ${s.start_weight}` : `started ${s.start_weight}`;
+  el("s-lost").textContent = s.lost ?? 0;
+  el("s-togo").textContent = s.to_go ?? "–"; el("s-togo-sub").textContent = `to ${s.target_weight}`;
+  el("s-date-label").textContent = `Forecast ${s.target_weight}`; el("leg-target").textContent = `Target ${s.target_weight}`;
+  el("s-rate").textContent = s.rate_per_week == null ? "–" : (s.rate_per_week > 0 ? "+" : "") + s.rate_per_week;
+  if (fc.ahead_lb != null) {
+    const ah = fc.ahead_lb;
+    el("s-ahead").textContent = (ah > 0 ? "−" : "+") + Math.abs(ah) + " lb";
+    el("s-ahead-sub").textContent = ah > 0 ? "ahead of the forecast" : ah < 0 ? "behind the forecast" : "right on it";
+  }
+  const td = fc.target_date_from_latest || fc.target_date;
+  el("s-date").textContent = td ? fmtDate(td) : "–";
+  el("s-weeks").textContent = td ? `${weeksBetween(todayStr(), td)} weeks from today` : `levels off near ${Math.round(fc.levels_off_at)} lb`;
+  if (a.target_date) {
+    el("s-goal").textContent = fmtDate(a.target_date);
+    el("s-goal-sub").innerHTML = `needs ${fc.needed_lb_per_week} lb / week · <span class="pill ${fc.on_track ? "green" : "red"}">${fc.on_track ? "on track" : "not yet"}</span>`;
+  } else { el("s-goal").textContent = "–"; el("s-goal-sub").textContent = "set a target date"; }
+  const fit = fc.fit;
+  if (fit) {
+    const base = `At ${Math.round(a.intake)} kcal with ${a.workouts_per_week} lifting days, ${hours(a.walk_min_per_week)} walking and ${hours(a.bike_min_per_week)} riding a week, the line ${fit.feasible_now ? "crosses" : "misses"} ${a.target_weight} by ${fmtDate(a.target_date)}.`;
+    el("verdict").innerHTML = `<span class="pill ${fit.feasible_now ? "green" : "red"}">${fit.feasible_now ? "This gets there" : "Not yet"}</span> ${base}` +
+      (fit.intake != null ? ` Keeping the training as set, about <strong>${fit.intake.toLocaleString()} kcal</strong> a day would do it.` : "");
+    el("fit-intake").disabled = fit.intake == null;
+  } else { el("verdict").innerHTML = `<span class="muted">Set a target date to see what it takes.</span>`; el("fit-intake").disabled = true; }
+}
+function renderRows() {
+  const e = ws.entries, exp = new Map(fc.forecast.map(p => [p.date, p.weight]));
+  el("rows").innerHTML = [...e].reverse().map((x, i, arr) => {
+    const prev = arr[i + 1], ch = prev ? (x.weight - prev.weight).toFixed(1) : "";
+    const ex = exp.get(x.date), vs = ex != null ? (ex - x.weight).toFixed(1) : "";
+    return `<tr><td>${fmtDate(x.date)}</td><td class="num">${x.weight}</td><td class="num ${ch < 0 ? "muted" : ""}">${ch > 0 ? "+" + ch : ch}</td><td class="num ${vs > 0 ? "" : "muted"}">${vs === "" ? "" : vs > 0 ? "−" + vs : vs < 0 ? "+" + Math.abs(vs) : "0"}</td><td class="muted">${esc(x.note)}</td>
+      <td><button class="small danger" onclick="del(${x.id})">Delete</button></td></tr>`;
+  }).join("") || `<tr><td colspan="6" class="muted">No entries yet.</td></tr>`;
+}
+function renderChart() {
+  const a = fc.assumptions, actual = fc.actual;
+  const td = fc.target_date_from_latest || fc.target_date;
+  let startDate, endDate;
+  if (view === "30") {
+    const d = new Date(); d.setDate(d.getDate() - 30); startDate = d.toISOString().slice(0, 10);
+    const e = new Date(); e.setDate(e.getDate() + 7); endDate = e.toISOString().slice(0, 10);
+  } else {
+    startDate = "0000";
+    endDate = [td, a.target_date].filter(Boolean).sort().pop() || fc.forecast[fc.forecast.length - 1].date;
+  }
+  const inRange = s => s.filter(p => p.date >= startDate && p.date <= endDate);
+  const f1 = inRange(fc.forecast), f2 = inRange(fc.from_latest || []), act = inRange(actual);
+  const avg = inRange(ws.moving_avg.map(x => ({ date: x.date, weight: x.avg })));
+  // goal line as two points within range: interpolate at the window edges
+  let goal = [];
+  if (fc.goal_line) {
+    const [g0, g1] = fc.goal_line, t0 = new Date(g0.date), t1 = new Date(g1.date);
+    const at = ds => { const t = new Date(ds); const f = (t - t0) / (t1 - t0); return f < 0 || f > 1 ? null : g0.weight + (g1.weight - g0.weight) * f; };
+    const lo = startDate === "0000" ? g0.date : startDate, hi = endDate < g1.date ? endDate : g1.date;
+    const w0 = at(lo), w1 = at(hi);
+    goal = [w0 != null && { date: lo, weight: w0 }, w1 != null && { date: hi, weight: w1 }].filter(Boolean);
+  }
+  const dates = new Set([...f1, ...f2, ...act, ...avg, ...goal].map(p => p.date));
+  const labels = [...dates].sort();
+  const map = s => { const m = new Map(s.map(p => [p.date, p.weight])); return labels.map(d => m.get(d) ?? null); };
+  const data = { labels: labels.map(fmtDate), datasets: [
+    { label: "Weigh-in", data: map(act), borderColor: "#1c1f22", backgroundColor: "#1c1f22", pointRadius: view === "30" ? 4 : 3, borderWidth: 1.5, spanGaps: true, tension: .1 },
+    { label: "7-day average", data: map(avg), borderColor: "#5a5f64", borderWidth: 2, pointRadius: 0, spanGaps: true, tension: .3 },
+    { label: "Forecast", data: map(f1), borderColor: "#7a4219", borderWidth: 2, pointRadius: 0, tension: .2 },
+    { label: "From last weigh-in", data: map(f2), borderColor: "#b8863b", borderWidth: 2, borderDash: [6, 4], pointRadius: 0, tension: .2 },
+    { label: "Goal line", data: map(goal), borderColor: "#8a8f94", borderWidth: 1.5, borderDash: [2, 4], pointRadius: 0, spanGaps: true },
+    { label: "Target", data: labels.map(() => a.target_weight), borderColor: "#a63a2b", borderDash: [6, 4], pointRadius: 0, borderWidth: 1 },
+  ] };
+  let lo, hi;
+  if (view === "30") {
+    const ys = [...act, ...f1, ...f2, ...goal].map(p => p.weight);
+    lo = Math.floor(Math.min(...ys) - 2); hi = Math.ceil(Math.max(...ys) + 2);
+    data.datasets.pop();  // target line is off the bottom of a 30-day window
+  } else { lo = Math.floor(a.target_weight - 5); hi = Math.ceil(Math.max(a.start_weight, ...actual.map(p => p.weight)) + 5); }
+  if (chart) { chart.data = data; chart.options.scales.y.min = lo; chart.options.scales.y.max = hi; chart.update(); }
+  else chart = new Chart(el("chart"), { type: "line", data, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+    plugins: { legend: { display: false } },
+    scales: { y: { min: lo, max: hi, grid: { color: cssVar("--line") } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 12, autoSkip: true } } } } });
+}
+async function load() {
+  [ws, fc] = await Promise.all([api("/api/weight"), api("/api/forecast")]);
+  fillForm(fc.assumptions); renderStats(); renderRows(); renderChart();
+}
+async function del(id) {
+  if (!confirm("Delete this entry?")) return;
+  await api(`/api/weight/${id}`, { method: "DELETE" }); await load();
+}
+el("date").value = todayStr();
+el("form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  try {
+    await api("/api/weight", { method: "POST", body: { date: el("date").value, weight: parseFloat(el("weight").value), note: el("note").value } });
+    el("weight").value = ""; el("note").value = ""; await load(); flash("msg", "Saved.");
+  } catch (e) { flash("msg", e.message, "err"); }
+});
+el("aform").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const body = { target_date: el("a-target-date").value, sex: el("a-sex").value, age: el("a-age").value, height_in: el("a-height").value, activity: el("a-activity").value,
+    daily_kcal: el("a-kcal").value, water_loss_lb: el("a-water").value };
+  try { await api("/api/settings", { method: "PATCH", body }); await load(); flash("msg", "Saved. Forecast updated."); }
+  catch (e) { flash("msg", e.message, "err"); }
+});
+el("reset-auto").addEventListener("click", async () => {
+  try { await api("/api/settings", { method: "PATCH", body: { daily_kcal: "" } }); await load(); flash("msg", "Calories now follow the meal plan."); }
+  catch (e) { flash("msg", e.message, "err"); }
+});
+el("fit-intake").addEventListener("click", async () => {
+  try { await api("/api/forecast/fit", { method: "POST", body: { mode: "intake" } }); await load(); flash("msg", "Daily calories set to hit the date."); }
+  catch (e) { flash("msg", e.message, "err"); }
+});
+document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => {
+  view = b.dataset.view; document.querySelectorAll("[data-view]").forEach(x => x.classList.toggle("active", x === b)); renderChart();
+}));
+load().catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

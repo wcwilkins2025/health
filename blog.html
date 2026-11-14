@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blog · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+<style>
+  .post { font-size: 17px; line-height: 1.5; }
+  .post h3 { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: .04em; text-transform: uppercase; margin: 0 0 2px; color: var(--ink); }
+  .post .date { font-family: var(--display); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .post p { margin: 0 0 10px; }
+  textarea { width: 100%; min-height: 140px; font-family: var(--serif); font-size: 16px; line-height: 1.5; }
+  .posts a { display: block; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--ink); }
+  .posts a strong { font-family: var(--display); letter-spacing: .04em; text-transform: uppercase; font-size: 17px; }
+  .posts a .muted { font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Blog</h1>
+  <div id="msg" class="msg" style="display:none"></div>
+
+  <div class="card" style="margin-bottom:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+    <button class="ghost small" id="prev">◀</button>
+    <input type="date" id="day" style="font-family:var(--serif)">
+    <button class="ghost small" id="next">▶</button>
+    <button class="ghost small" id="today">Today</button>
+    <span style="flex:1"></span>
+    <button class="ghost" id="copy">Copy Markdown</button>
+    <button id="publish">Publish site</button>
+  </div>
+
+  <div class="grid">
+    <div class="card span">
+      <h2>Post</h2>
+      <div class="post" id="post"></div>
+    </div>
+
+    <div class="card span">
+      <h2>In my own words</h2>
+      <form id="form">
+        <label>Title (leave blank for the generated one) <input id="title" placeholder=""></label>
+        <label style="margin-top:8px">Commentary (Markdown: blank line between paragraphs, **bold**, lines starting with "- " make a list)
+          <textarea id="commentary"></textarea></label>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:10px">
+          <button type="submit">Save</button>
+          <span class="small muted" id="saved"></span>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Posts</h2>
+      <div class="posts" id="posts"></div>
+    </div>
+
+    <div class="card">
+      <h2>Site</h2>
+      <form id="site-form">
+        <label>Blog title <input id="blog-title"></label>
+        <label style="margin-top:8px">Intro on the front page (Markdown) <textarea id="blog-intro" style="min-height:80px"></textarea></label>
+        <label style="margin-top:8px">Publish folder <input id="blog-dir" placeholder="data\blog-site"></label>
+        <label style="margin-top:8px">Workout goal per week <input type="number" id="goal" min="1" max="7" step="1" style="width:90px"></label>
+        <div style="display:flex; gap:10px; align-items:center; margin-top:10px"><button type="submit">Save</button></div>
+      </form>
+      <p class="small muted" style="margin:10px 0 0" id="site-info">"Publish site" writes index.html and one page per day into the publish folder. Point the folder at a local copy of the website and push it, or upload the folder to any host.</p>
+    </div>
+  </div>
+</main>
+<script>
+let cur = todayStr(), post = null, settings = null;
+function shift(n) { const d = new Date(cur + "T12:00:00"); d.setDate(d.getDate() + n); cur = d.toISOString().slice(0, 10); load(); }
+function mdHtml(md) {
+  const inline = s => esc(s).split("**").map((t, i) => i % 2 ? `<strong>${t}</strong>` : t).join("");
+  return md.trim().split(/\n\n+/).map(b => { const ls = b.trim().split("\n"); return ls.every(l => l.startsWith("- ")) ? `<ul>${ls.map(l => `<li>${inline(l.slice(2))}</li>`).join("")}</ul>` : `<p>${ls.map(inline).join("<br>")}</p>`; }).join("");
+}
+async function load() {
+  el("day").value = cur;
+  post = await api(`/api/blog/${cur}`);
+  el("post").innerHTML = `<h3>${esc(post.title)}</h3><div class="date">${fmtDate(post.date)}${post.published_at ? " · published " + fmtDateTime(post.published_at) : ""}</div>` + mdHtml(post.body_md) +
+    (post.commentary ? `<h2 style="margin-top:14px">In my own words</h2>` + mdHtml(post.commentary) : "");
+  el("title").value = post.custom_title || ""; el("title").placeholder = post.title;
+  el("commentary").value = post.commentary || "";
+  el("saved").textContent = "";
+  const list = await api("/api/blog");
+  el("posts").innerHTML = list.length ? list.slice(0, 30).map(p => `<a href="#" onclick="cur='${p.date}'; load(); return false"><strong>${esc(p.title)}</strong><br><span class="muted">${fmtDate(p.date)}${p.commentary ? " · with your words" : ""}${p.published_at ? " · published" : ""}</span></a>`).join("") : `<span class="muted">Nothing yet. Log a weigh-in or a workout and a post appears.</span>`;
+}
+async function loadSettings() {
+  settings = await api("/api/settings");
+  el("blog-title").value = settings.blog_title || ""; el("blog-intro").value = settings.blog_intro || "";
+  el("blog-dir").value = settings.blog_publish_dir || ""; el("goal").value = settings.workout_goal_per_week || 6;
+}
+el("form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  try { await api(`/api/blog/${cur}`, { method: "PUT", body: { commentary: el("commentary").value, title: el("title").value } }); el("saved").textContent = "Saved."; await load(); }
+  catch (e) { flash("msg", e.message, "err"); }
+});
+el("site-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  try { await api("/api/settings", { method: "PATCH", body: { blog_title: el("blog-title").value, blog_intro: el("blog-intro").value, blog_publish_dir: el("blog-dir").value, workout_goal_per_week: el("goal").value } }); flash("msg", "Site settings saved."); await load(); }
+  catch (e) { flash("msg", e.message, "err"); }
+});
+el("publish").addEventListener("click", async () => {
+  el("publish").disabled = true;
+  try { const r = await api("/api/blog/publish", { method: "POST" }); download("blog.html", r.html); flash("msg", `Saved ${r.posts} post${r.posts === 1 ? "" : "s"} as one page, blog.html. Put it on any web host or open it.`); await load(); }
+  catch (e) { flash("msg", e.message, "err"); }
+  el("publish").disabled = false;
+});
+el("copy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(post.markdown); flash("msg", "Markdown copied. Paste it anywhere."); }
+  catch (e) { flash("msg", "Could not copy: " + e.message, "err"); }
+});
+el("prev").addEventListener("click", () => shift(-1));
+el("next").addEventListener("click", () => shift(1));
+el("today").addEventListener("click", () => { cur = todayStr(); load(); });
+el("day").addEventListener("change", () => { if (el("day").value) { cur = el("day").value; load(); } });
+Promise.all([load(), loadSettings()]).catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

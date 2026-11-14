@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blood pressure · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=1">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=1"></script>
+<script src="js/store.js?v=1"></script>
+<script src="js/engine.js?v=1"></script>
+<script src="js/api.js?v=1"></script>
+<script src="js/app.js?v=1"></script>
+</head>
+<body>
+<main>
+  <h1>Blood pressure</h1>
+  <div id="msg" class="msg" style="display:none"></div>
+
+  <div class="card" style="margin-bottom:14px">
+    <form class="row" id="form">
+      <label>When <input type="datetime-local" id="taken_at" required></label>
+      <label>Systolic <input type="number" id="systolic" min="60" max="260" required autofocus></label>
+      <label>Diastolic <input type="number" id="diastolic" min="30" max="160" required></label>
+      <label>Pulse <input type="number" id="pulse" min="30" max="220"></label>
+      <label>Context
+        <select id="context">
+          <option value="morning">Morning</option>
+          <option value="evening">Evening</option>
+          <option value="pre_workout">Before workout</option>
+          <option value="post_workout">After workout</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label style="flex:1">Note <input type="text" id="note" placeholder="optional"></label>
+      <button type="submit">Save</button>
+    </form>
+    <p class="small muted" style="margin:8px 0 0">Sit quietly five minutes first, arm at heart level, feet flat. Same time each day gives the cleanest trend. Single readings bounce around; the 7-day average is the number that matters.</p>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="stats">
+      <div class="stat"><span class="label">Latest</span><span class="value" id="s-latest">–</span><span class="sub" id="s-latest-sub"></span></div>
+      <div class="stat"><span class="label">7-day average</span><span class="value" id="s-avg7">–</span><span class="sub" id="s-cat"></span></div>
+      <div class="stat"><span class="label">30-day average</span><span class="value" id="s-avg30">–</span><span class="sub" id="s-avg30-sub"></span></div>
+    </div>
+    <p class="small muted" style="margin:12px 0 0">Bands: normal under 120/80, elevated 120-129 over under 80, stage 1 at 130/80, stage 2 at 140/90. Over 180/120 is a crisis, call your doctor. Expect readings to fall as weight and carbs come down; if you take BP medication, that is when the dose needs revisiting with your doctor.</p>
+  </div>
+
+  <div class="card" style="margin-bottom:14px">
+    <div class="legend"><span style="--c:#a63a2b">Systolic</span><span style="--c:#1c1f22">Diastolic</span><span style="--c:#9aa49e">7-day averages</span></div>
+    <div class="chart"><canvas id="chart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <h2>Readings</h2>
+    <table><thead><tr><th>When</th><th class="num">Sys/Dia</th><th class="num">Pulse</th><th>Context</th><th>Band</th><th>Note</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+  </div>
+</main>
+<script>
+let chart;
+const CTX = { morning: "Morning", evening: "Evening", pre_workout: "Before workout", post_workout: "After workout", other: "Other" };
+function render(s) {
+  if (s.latest) {
+    el("s-latest").textContent = `${s.latest.systolic}/${s.latest.diastolic}`;
+    el("s-latest-sub").textContent = fmtDateTime(s.latest.taken_at) + (s.latest.pulse ? `, pulse ${s.latest.pulse}` : "");
+    el("s-avg7").textContent = `${s.avg7.systolic}/${s.avg7.diastolic}`;
+    el("s-cat").innerHTML = `<span class="pill ${s.category}">${CAT_LABEL[s.category]}</span> ${s.avg7.n} reading${s.avg7.n === 1 ? "" : "s"}`;
+    el("s-avg30").textContent = `${s.avg30.systolic}/${s.avg30.diastolic}`;
+    el("s-avg30-sub").textContent = `${s.avg30.n} reading${s.avg30.n === 1 ? "" : "s"}` + (s.avg30.pulse ? `, pulse ${s.avg30.pulse}` : "");
+  }
+  const e = s.entries;
+  el("rows").innerHTML = [...e].reverse().map(x => `<tr><td>${fmtDateTime(x.taken_at)}</td><td class="num">${x.systolic}/${x.diastolic}</td><td class="num">${x.pulse ?? ""}</td>
+    <td>${CTX[x.context] || esc(x.context)}</td><td><span class="pill ${x.category}">${CAT_LABEL[x.category]}</span></td><td class="muted">${esc(x.note)}</td>
+    <td><button class="small danger" onclick="del(${x.id})">Delete</button></td></tr>`).join("") || `<tr><td colspan="7" class="muted">No readings yet.</td></tr>`;
+
+  const labels = e.map(x => fmtDateTime(x.taken_at));
+  const band = (v, color) => ({ label: "", data: e.map(() => v), borderColor: color, borderDash: [4, 4], borderWidth: 1, pointRadius: 0 });
+  const data = { labels, datasets: [
+    { label: "Systolic", data: e.map(x => x.systolic), borderColor: "#a63a2b", backgroundColor: "#a63a2b", tension: .2, pointRadius: 3 },
+    { label: "Diastolic", data: e.map(x => x.diastolic), borderColor: "#1c1f22", backgroundColor: "#1c1f22", tension: .2, pointRadius: 3 },
+    { label: "Sys 7d", data: s.rolling.map(x => x.systolic), borderColor: "#9aa49e", borderWidth: 2, pointRadius: 0, tension: .3 },
+    { label: "Dia 7d", data: s.rolling.map(x => x.diastolic), borderColor: "#9aa49e", borderWidth: 2, pointRadius: 0, tension: .3 },
+    band(140, "#a63a2b"), band(130, "#a8740a"), band(120, "#2e7d4f"), band(90, "#a63a2b"), band(80, "#a8740a"),
+  ] };
+  if (chart) { chart.data = data; chart.update(); return; }
+  chart = new Chart(el("chart"), { type: "line", data, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+    scales: { y: { min: 50, suggestedMax: 160, grid: { color: cssVar("--line") } }, x: { grid: { display: false }, ticks: { maxTicksLimit: 8 } } } } });
+}
+async function del(id) {
+  if (!confirm("Delete this reading?")) return;
+  render(await api(`/api/bp/${id}`, { method: "DELETE" }));
+}
+el("taken_at").value = nowLocal();
+el("form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  try {
+    const body = { taken_at: el("taken_at").value, systolic: +el("systolic").value, diastolic: +el("diastolic").value,
+      pulse: el("pulse").value ? +el("pulse").value : null, context: el("context").value, note: el("note").value };
+    render(await api("/api/bp", { method: "POST", body }));
+    ["systolic", "diastolic", "pulse", "note"].forEach(i => el(i).value = ""); el("taken_at").value = nowLocal(); flash("msg", "Saved.");
+  } catch (e) { flash("msg", e.message, "err"); }
+});
+api("/api/bp").then(render).catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>
