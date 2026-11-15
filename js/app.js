@@ -1,7 +1,7 @@
 /* Shared helpers for every page: sign-in check, nav, and api() over the person's rows.
    A page that is not account.html needs a signed-in person; without one it goes to account.html and comes back. */
 const NAV = [
-  ["index.html", "Dashboard"], ["weight.html", "Weight"], ["bp.html", "Blood pressure"], ["training.html", "Training"], ["log.html", "Log"],
+  ["index.html", "Dashboard"], ["weight.html", "Weight"], ["bp.html", "Blood pressure"], ["checkin.html", "Check-in"], ["training.html", "Training"], ["log.html", "Log"],
   ["plan.html", "Meal plan"], ["recipes.html", "Recipes"], ["shopping.html", "Shopping"], ["foods.html", "Foods"], ["blog.html", "Blog"],
 ];
 

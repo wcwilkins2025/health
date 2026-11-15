@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Meal plan · Weight Target</title>
-<link rel="stylesheet" href="style.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#7a4219">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,11 +15,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
-<script src="data/library.js?v=1"></script>
-<script src="js/store.js?v=1"></script>
-<script src="js/engine.js?v=1"></script>
-<script src="js/api.js?v=1"></script>
-<script src="js/app.js?v=1"></script>
+<script src="data/library.js?v=2"></script>
+<script src="js/store.js?v=2"></script>
+<script src="js/engine.js?v=2"></script>
+<script src="js/api.js?v=2"></script>
+<script src="js/app.js?v=2"></script>
 </head>
 <body>
 <main>
@@ -43,7 +43,7 @@
 
   <div class="card" style="margin-top:14px" id="nutri" style="display:none">
     <h2>Nutrition this week</h2>
-    <div class="legend"><span style="--c:#7a4219">Protein</span><span style="--c:#a8740a">Fat</span><span style="--c:#a63a2b">Net carbs</span></div>
+    <div class="legend"><span style="--c:#7a4219">Protein</span><span style="--c:#a8740a">Fat</span><span style="--c:#a63a2b">Net carbs</span><span style="--c:#1c1f22" id="leg-goal" hidden>Protein goal</span></div>
     <div class="chart"><canvas id="nutri-chart"></canvas></div>
     <table class="small" id="nutri-table" style="width:100%; margin-top:8px; border-collapse:collapse"></table>
     <p class="small muted" style="margin:8px 0 0">Per serving as written in the recipe, from standard reference values (raw weight for meat and fish, net carbs). Good to about 10 percent.</p>
@@ -112,7 +112,8 @@ function macLine(n, long) {
   return long ? `${n.kcal}${star} kcal · ${n.protein} g protein · ${n.fat} g fat · ${n.carbs} g net carbs`
               : `${n.kcal}${star} kcal · ${n.protein}P · ${n.fat}F · ${n.carbs}C`;
 }
-let nutriChart = null;
+let nutriChart = null, proteinGoal = null;
+api("/api/goals").then(g => { proteinGoal = g.protein_g; el("leg-goal").hidden = !proteinGoal; if (plan) renderNutrition(); }).catch(() => {});
 function renderNutrition() {
   const days = plan.days;
   el("nutri").style.display = "";
@@ -123,14 +124,15 @@ function renderNutrition() {
     { label: "Fat", data: pick("fat"), backgroundColor: "#a8740a", stack: "g" },
     { label: "Net carbs", data: pick("carbs"), backgroundColor: "#a63a2b", stack: "g" },
   ] };
+  if (proteinGoal) data.datasets.push({ type: "line", label: "Protein goal", data: days.map(() => proteinGoal), borderColor: "#1c1f22", borderDash: [6, 4], borderWidth: 2, pointRadius: 0, stack: "goal", order: -1 });
   if (nutriChart) { nutriChart.data = data; nutriChart.update(); }
   else nutriChart = new Chart(el("nutri-chart"), { type: "bar", data, options: { responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { footer: items => `${days[items[0].dataIndex].nutrition?.kcal ?? 0} kcal` } } },
     scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, title: { display: true, text: "grams" } } } } });
   const avg = k => Math.round(days.reduce((a, d) => a + (d.nutrition ? d.nutrition[k] : 0), 0) / days.length);
   el("nutri-table").innerHTML = `<tr><th style="text-align:left">Day</th><th>kcal</th><th>Protein</th><th>Fat</th><th>Net carbs</th></tr>` +
-    days.map(d => `<tr><td>${fmtDate(d.date)}</td><td>${d.nutrition?.kcal ?? "–"}</td><td>${d.nutrition?.protein ?? "–"} g</td><td>${d.nutrition?.fat ?? "–"} g</td><td>${d.nutrition?.carbs ?? "–"} g</td></tr>`).join("") +
-    `<tr style="font-weight:600"><td>Average</td><td>${avg("kcal")}</td><td>${avg("protein")} g</td><td>${avg("fat")} g</td><td>${avg("carbs")} g</td></tr>`;
+    days.map(d => `<tr><td>${fmtDate(d.date)}</td><td>${d.nutrition?.kcal ?? "–"}</td><td${proteinGoal && d.nutrition && d.nutrition.protein < proteinGoal ? ' class="short"' : ""}>${d.nutrition?.protein ?? "–"} g</td><td>${d.nutrition?.fat ?? "–"} g</td><td>${d.nutrition?.carbs ?? "–"} g</td></tr>`).join("") +
+    `${proteinGoal ? `<tr class="muted"><td>Protein goal</td><td></td><td>${proteinGoal} g</td><td></td><td></td></tr>` : ""}<tr style="font-weight:600"><td>Average</td><td>${avg("kcal")}</td><td>${avg("protein")} g</td><td>${avg("fat")} g</td><td>${avg("carbs")} g</td></tr>`;
 }
 async function loadExtras() {
   const x = await api(`/api/plans/${plan.id}/batch`);

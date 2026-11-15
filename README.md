@@ -1,12 +1,12 @@
 # Weight Target
 
-Meal plans, a shopping list, weigh-ins, blood pressure, a workout log, a forecast and a daily blog, for getting to a goal weight on a low-carb, protein-first diet. Works on a phone; add it to the home screen and it opens like an app.
+Meal plans, a shopping list, weigh-ins, blood pressure, a daily check-in, a workout log, a forecast and a daily blog, for getting to a goal weight on a low-carb, protein-first diet. Works on a phone; add it to the home screen and it opens like an app.
 
 Live at **https://wcwilkins2025.github.io/health/**. Accounts are by invitation.
 
 ## How it is built
 
-A static site on GitHub Pages. Each person's rows live in a Supabase project, and the row rules in `supabase/schema.sql` let each signed-in person read and change only their own. The arithmetic runs in the browser: `js/engine.js` (statistics, nutrition, the planner, the forecast, the training week, the log, the blog) answers the pages through `js/api.js`, which reads and writes through `js/store.js`. The food library and recipes are the same for everyone and ship with the site in `data/library.js`.
+A static site on GitHub Pages. Each person's rows live in a Supabase project, and the row rules in `supabase/schema.sql` let each signed-in person read and change only their own. The arithmetic runs in the browser: `js/engine.js` (statistics, nutrition, the planner, the check-in, the forecast, the training week, the log, the blog) answers the pages through `js/api.js`, which reads and writes through `js/store.js`. The food library and recipes are the same for everyone and ship with the site in `data/library.js`.
 
 `config.js` holds the Supabase project URL and the publishable key, which are made to be public. The secret key is never in this repo.
 
@@ -17,6 +17,7 @@ A static site on GitHub Pages. Each person's rows live in a Supabase project, an
 | `index.html` | Today first: what to eat, what to move, the numbers, the chart. |
 | `weight.html` | Weigh-ins, the forecast from an energy balance, the goal date and what it takes. |
 | `bp.html` | Blood pressure readings with 7- and 30-day averages and the bands. |
+| `checkin.html` | The day's water against a goal, protein planned against a goal, energy, focus and mood out of 10, sleep, and four habits, with seven-day averages. |
 | `training.html` | The week by day: what was lifted, what was missed, what is still owed. Sessions, volume, records. Gym ACE import. |
 | `log.html` | Log a workout on the phone: last time's sets to beat, a rest timer, your workouts and their exercises. |
 | `plan.html` | The week's meals, swaps, away days, build a week from last week's groceries. |

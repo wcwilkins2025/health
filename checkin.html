@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check-in · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=2">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=2"></script>
+<script src="js/store.js?v=2"></script>
+<script src="js/engine.js?v=2"></script>
+<script src="js/api.js?v=2"></script>
+<script src="js/app.js?v=2"></script>
+</head>
+<body>
+<main>
+  <h1>Check-in <input type="date" id="date" class="h1-date"></h1>
+  <div id="msg" class="msg" style="display:none"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Water</h2>
+      <div class="water"><span class="value" id="w-oz">0</span><span class="muted" id="w-goal">of 100 oz</span></div>
+      <div class="bar"><span id="w-bar"></span></div>
+      <div class="water-add">
+        <button type="button" data-add="8">+8 oz</button><button type="button" data-add="16">+16 oz</button><button type="button" data-add="32">+32 oz</button><button type="button" class="ghost" data-add="-8">−8</button>
+      </div>
+      <p class="small muted" style="margin:8px 0 0">A plain bottle is 16.9 oz. Bone broth and unsweetened tea count.</p>
+    </div>
+
+    <div class="card">
+      <h2>Protein</h2>
+      <div id="protein" class="muted"></div>
+    </div>
+
+    <div class="card span">
+      <h2>How the day felt</h2>
+      <div id="scores"></div>
+      <div class="row" style="margin-top:10px">
+        <label>Sleep (hours) <input type="number" id="sleep" min="0" max="24" step="0.25" inputmode="decimal"></label>
+      </div>
+      <h3>Habits</h3>
+      <div id="habits"></div>
+      <label style="margin-top:10px">Note <textarea id="note" rows="2" placeholder="optional: anything worth remembering about today"></textarea></label>
+      <p class="small muted" style="margin:8px 0 0">Every tap saves. Score the day near its end, the same way each day, and the seven-day averages show what changed.</p>
+    </div>
+
+    <div class="card">
+      <h2>Last seven days</h2>
+      <div class="stats" id="avg"></div>
+      <h3>Habits kept</h3>
+      <div class="small" id="habit-days"></div>
+    </div>
+
+    <div class="card">
+      <h2>Goals</h2>
+      <form class="row" id="goals">
+        <label>Water a day (oz) <input type="number" id="g-water" min="0" max="400" step="1"></label>
+        <label>Protein a day (g) <input type="number" id="g-protein" min="0" max="600" step="5"></label>
+        <button type="submit">Save</button>
+      </form>
+      <p class="small muted" style="margin:8px 0 0" id="g-help"></p>
+    </div>
+
+    <div class="card span">
+      <h2>Check-ins</h2>
+      <table><thead><tr><th>Day</th><th class="num">Energy</th><th class="num">Focus</th><th class="num">Mood</th><th class="num">Sleep</th><th class="num">Water</th><th class="num">Habits</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+    </div>
+  </div>
+</main>
+<script>
+const LABEL = { energy: "Energy", focus: "Focus", mood: "Mood" };
+let state = null;
+const day = () => el("date").value;
+const dash = v => v == null ? "–" : v;
+
+function render(s) {
+  state = s;
+  const t = s.today;
+  el("w-oz").textContent = Math.round(t.water_oz);
+  el("w-goal").textContent = `of ${s.water_goal} oz`;
+  el("w-bar").style.width = Math.min(100, s.water_goal ? t.water_oz / s.water_goal * 100 : 0) + "%";
+  el("w-bar").className = t.water_oz >= s.water_goal ? "done" : "";
+
+  if (s.protein_goal) {
+    const p = s.planned_protein;
+    el("protein").className = "";
+    el("protein").innerHTML = `<div class="water"><span class="value">${p ?? "–"}</span><span class="muted">of ${s.protein_goal} g planned</span></div>
+      <div class="bar"><span style="width:${p ? Math.min(100, p / s.protein_goal * 100) : 0}%" class="${p >= s.protein_goal ? "done" : ""}"></span></div>
+      <p class="small muted" style="margin:8px 0 0">${p == null ? 'No meal plan for this day. <a href="plan.html">Make one.</a>' :
+        p >= s.protein_goal ? "The plan covers it." : `${s.protein_goal - p} g short. A can of tuna or chicken is about 30 g; two eggs are 12.`}</p>`;
+  } else el("protein").textContent = "Set a target weight or a protein goal below.";
+
+  el("scores").innerHTML = Object.keys(LABEL).map(k => `<div class="scale-row"><span class="k">${LABEL[k]}</span><div class="scale">` +
+    Array.from({ length: 10 }, (_, i) => i + 1).map(n => `<button type="button" class="${t[k] === n ? "on" : ""}" onclick="score('${k}', ${n})">${n}</button>`).join("") + `</div></div>`).join("");
+  el("sleep").value = t.sleep_hours ?? "";
+  if (document.activeElement !== el("note")) el("note").value = t.note || "";
+  el("habits").innerHTML = s.habits.map(h => `<label class="check"><input type="checkbox" ${t.habits && t.habits[h.key] ? "checked" : ""} onchange="habit('${h.key}', this.checked)"> ${esc(h.label)}</label>`).join("");
+
+  const a = s.avg7;
+  el("avg").innerHTML = a.days ? ["energy", "focus", "mood"].map(k => `<div class="stat"><span class="label">${LABEL[k]}</span><span class="value">${dash(a[k])}</span><span class="sub">out of 10</span></div>`).join("") +
+    `<div class="stat"><span class="label">Sleep</span><span class="value">${dash(a.sleep_hours)}</span><span class="sub">hours</span></div><div class="stat"><span class="label">Water</span><span class="value">${a.water_oz == null ? "–" : Math.round(a.water_oz)}</span><span class="sub">oz a day</span></div>`
+    : `<span class="muted">No check-ins in the seven days to ${fmtDate(s.date)}.</span>`;
+  el("habit-days").innerHTML = s.habits.map(h => `${esc(h.label)}: <strong>${h.days}</strong> of ${a.days || 0}`).join("<br>");
+
+  el("g-water").value = s.water_goal;
+  el("g-protein").value = s.protein_goal_own ? s.protein_goal : "";
+  el("g-protein").placeholder = s.protein_goal_own ? "" : (s.protein_goal ?? "");
+  el("g-help").textContent = "Protein left blank follows the target weight: 1 g for each pound of it. Lean meat, eggs and fish carry most of it.";
+
+  el("rows").innerHTML = s.entries.map(r => `<tr class="${r.date === s.date ? "today-tr" : ""}"><td><a href="#" onclick="go('${r.date}');return false">${fmtDate(r.date)}</a></td>
+    <td class="num">${dash(r.energy)}</td><td class="num">${dash(r.focus)}</td><td class="num">${dash(r.mood)}</td><td class="num">${dash(r.sleep_hours)}</td>
+    <td class="num">${Math.round(r.water_oz || 0)}</td><td class="num">${Object.keys(r.habits || {}).length} of ${s.habits.length}</td>
+    <td><button class="small danger" onclick="del('${r.date}')">Delete</button></td></tr>`).join("") || `<tr><td colspan="8" class="muted">No check-ins yet.</td></tr>`;
+}
+
+async function save(body) {
+  try { render(await api(`/api/checkins/${day()}`, { method: "PUT", body })); }
+  catch (e) { flash("msg", e.message, "err"); }
+}
+function score(k, n) { save({ [k]: state.today[k] === n ? null : n }); }
+function habit(k, on) { save({ habits: Object.assign({}, state.today.habits, { [k]: on }) }); }
+async function del(ds) {
+  if (!confirm(`Delete the check-in for ${fmtDate(ds)}?`)) return;
+  await api(`/api/checkins/${ds}`, { method: "DELETE" });
+  load();
+}
+function go(ds) { el("date").value = ds; load(); scrollTo(0, 0); }
+async function load() { render(await api(`/api/checkins?date=${day()}`)); }
+
+document.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", async () => {
+  try { render(await api(`/api/checkins/${day()}/water`, { method: "POST", body: { add: +b.dataset.add } })); }
+  catch (e) { flash("msg", e.message, "err"); }
+}));
+el("sleep").addEventListener("change", () => save({ sleep_hours: el("sleep").value === "" ? null : +el("sleep").value }));
+el("note").addEventListener("change", () => save({ note: el("note").value }));
+el("date").addEventListener("change", () => load().catch(e => flash("msg", e.message, "err")));
+el("goals").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  try {
+    await api("/api/settings", { method: "PATCH", body: { water_goal_oz: el("g-water").value || "100", protein_goal_g: el("g-protein").value } });
+    await load(); flash("msg", "Goals saved.");
+  } catch (e) { flash("msg", e.message, "err"); }
+});
+const q = new URLSearchParams(location.search).get("date");
+el("date").value = q || todayStr();
+load().catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

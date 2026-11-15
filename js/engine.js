@@ -37,7 +37,7 @@
     activity: 'sedentary', workouts_per_week: '', kcal_per_workout: '300', daily_kcal: '', water_loss_lb: '6', target_date: '',
     lift_rotation: 'Push,Pull,Legs,Push,Pull,Legs,Rest', walk_min_per_week: '0', bike_min_per_week: '0', walk_pace: 'brisk',
     bike_pace: 'moderate', blog_title: 'The Weight Log', blog_intro: '', workout_goal_per_week: '6', gymace_last_sync: '',
-    name: '', my_code: ''
+    name: '', my_code: '', water_goal_oz: '100', protein_goal_g: ''
   };
   E.SETTING_KEYS = Object.keys(E.DEFAULTS);
   E.get = function (S, key, dflt) {
@@ -665,6 +665,50 @@
   };
 
   // ---------- blog ----------
+  // ---------- daily check-in: how the day felt, sleep, water, the habits kept ----------
+  E.HABITS = [
+    ['dark_room', 'Slept in a dark room, no phone in bed'],
+    ['sunlight', '10 minutes of sun within an hour of waking'],
+    ['no_alcohol', 'No alcohol'],
+    ['no_plastic', 'Nothing heated or drunk from plastic']
+  ];
+  E.SCORES = ['energy', 'focus', 'mood'];
+  E.waterGoal = function (S) { return f(S, 'water_goal_oz', 100); };
+  /* grams of protein a day: the person's own number, else 1 g per pound of the target weight */
+  E.proteinGoal = function (S) {
+    var own = f(S, 'protein_goal_g', 0);
+    if (own > 0) return Math.round(own);
+    var t = parseFloat(E.get(S, 'target_weight'));
+    return isNaN(t) ? null : Math.round(t);
+  };
+  var BLANK_CHECKIN = { energy: null, focus: null, mood: null, sleep_hours: null, water_oz: 0, habits: {}, note: '' };
+  E.checkin = function (S, ds) { return S.db.checkins.find(function (x) { return x.date === ds; }) || null; };
+  E.saveCheckin = async function (S, ds, patch) {
+    var cur = E.checkin(S, ds) || {}, row = { date: ds };
+    Object.keys(BLANK_CHECKIN).forEach(function (k) { row[k] = patch[k] !== undefined ? patch[k] : (cur[k] !== undefined ? cur[k] : BLANK_CHECKIN[k]); });
+    await S.upsert('checkins', row);
+    return E.checkin(S, ds);
+  };
+  E.checkinStats = function (S, ds) {
+    ds = ds || E.todayStr();
+    var rows = S.db.checkins.slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    var week = rows.filter(function (r) { return r.date <= ds && E.daysBetween(r.date, ds) < 7; });
+    function avg(k) {
+      var v = week.map(function (r) { return r[k]; }).filter(function (x) { return x !== null && x !== undefined && x !== ''; }).map(Number);
+      return v.length ? r1(v.reduce(function (a, b) { return a + b; }, 0) / v.length) : null;
+    }
+    var avg7 = { days: week.length };
+    E.SCORES.concat(['sleep_hours', 'water_oz']).forEach(function (k) { avg7[k] = avg(k); });
+    var habits = E.HABITS.map(function (h) { return { key: h[0], label: h[1], days: week.filter(function (r) { return r.habits && r.habits[h[0]]; }).length }; });
+    var plan = E.planForWeek(S, ds), day = plan ? plan.days.find(function (x) { return x.date === ds; }) : null;
+    return {
+      date: ds, today: Object.assign({ date: ds }, BLANK_CHECKIN, E.checkin(S, ds) || {}), avg7: avg7, habits: habits,
+      water_goal: E.waterGoal(S), protein_goal: E.proteinGoal(S), protein_goal_own: f(S, 'protein_goal_g', 0) > 0,
+      planned_protein: day && day.nutrition ? day.nutrition.protein : null,
+      entries: rows.slice().reverse().slice(0, 60)
+    };
+  };
+
   var SLOT_LABEL = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack1: 'Snack', snack2: 'Snack' };
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   var WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -722,6 +766,9 @@
     out.expected = exp ? exp.weight : null;
     out.ahead_lb = exp && todayW ? r1(exp.weight - todayW.weight) : null;
     out.target_date = fc.target_date_from_latest || fc.target_date;
+    out.checkin = E.checkin(S, ds);
+    out.water_goal = E.waterGoal(S);
+    out.protein_goal = E.proteinGoal(S);
     return out;
   };
   E.generatePost = function (S, ds, fc) {
@@ -750,8 +797,18 @@
     if (x.meals.length) {
       var n = x.day_nutrition;
       p.push('**Food' + (x.away ? ' (away day, cooler bag)' : '') + ':** ' + x.meals.map(function (m) { return m.slot + ': ' + m.name; }).join('; ') + '.' +
-        (n ? ' About ' + n.kcal.toLocaleString('en-US') + ' kcal, ' + n.protein + ' g protein, ' + g(n.carbs) + ' g net carbs.' : '') + ' No bread, no sugar, nothing out of a drive-through.');
+        (n ? ' About ' + n.kcal.toLocaleString('en-US') + ' kcal, ' + n.protein + ' g protein' + (x.protein_goal ? ' (goal ' + x.protein_goal + ')' : '') + ', ' + g(n.carbs) + ' g net carbs.' : '') + ' No bread, no sugar, nothing out of a drive-through.');
     } else p.push('**Food:** no plan logged for today.');
+    var ck = x.checkin;
+    if (ck) {
+      var cb = [], sc = E.SCORES.filter(function (k) { return ck[k] != null; });
+      if (sc.length) cb.push(sc.map(function (k) { return k + ' ' + ck[k]; }).join(', ').replace(/^./, function (c) { return c.toUpperCase(); }) + ' out of 10.');
+      if (ck.sleep_hours != null) cb.push(g(ck.sleep_hours) + ' hours of sleep.');
+      if (ck.water_oz) cb.push(g(ck.water_oz) + ' of ' + g(x.water_goal) + ' oz of water.');
+      var kept = E.HABITS.filter(function (h) { return ck.habits && ck.habits[h[0]]; }).map(function (h) { return h[1].split(',')[0].toLowerCase(); });
+      if (kept.length) cb.push('Kept: ' + kept.join('; ') + '.');
+      if (cb.length) p.push('**Check-in:** ' + cb.join(' '));
+    }
     if (x.ahead_lb !== null) {
       if (x.ahead_lb > 0) p.push('**The line:** ' + g(x.ahead_lb) + ' lb ahead of the forecast.');
       else if (x.ahead_lb < 0) p.push('**The line:** ' + g(Math.abs(x.ahead_lb)) + ' lb behind the forecast. The scale is the truth; the line is the expectation.');
@@ -773,6 +830,7 @@
     var ds = new Set(E.weightEntries(S).map(function (x) { return x.date; }));
     E.workoutDates(S).forEach(function (d) { ds.add(d); });
     S.db.blog_posts.forEach(function (b) { if (b.commentary) ds.add(b.date); });
+    S.db.checkins.forEach(function (c) { ds.add(c.date); });
     var start = E.get(S, 'start_date');
     return Array.from(ds).filter(function (x) { return !start || x >= start; }).sort().reverse();
   };

@@ -10,6 +10,7 @@ Static site on GitHub Pages (`wcwilkins2025/health`, Pages from `main` at the ro
 - `js/api.js` `HT.route(S, method, path, body)`: the old server's `/api/...` routes answered in the browser. Pages call `api(path, opts)` (in `js/app.js`) exactly as they called the server.
 - `js/import.js` Gym ACE and old-app SQLite files read with sql.js in the browser.
 - `js/app.js` sign-in check (Supabase session, else `account.html`), welcome gate, nav, `api()`, `importFile()`, `download()`, page helpers.
+- Daily check-in (`checkins`, one row per date): energy, focus, mood 1 to 10, sleep hours, water oz, habits `{key: true}` for the keys in `E.HABITS`. Goals are settings `water_goal_oz` and `protein_goal_g` (blank = 1 g per lb of the target weight).
 - `supabase/schema.sql` tables, one "own rows" policy per table, `delete_me()`.
 - Plan day and slot ids are numbers made from the plan id: day = plan*10 + day index, slot = plan*100 + day*10 + slot index.
 

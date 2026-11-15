@@ -211,6 +211,27 @@
     return E.forecast(S);
   });
 
+  // ---------- daily check-in and the goals ----------
+  function checkinBody(b) {
+    var out = {};
+    E.SCORES.forEach(function (k) { if (b[k] !== undefined) { var v = num(b[k], k, 1, 10); out[k] = v === null ? null : Math.round(v); } });
+    if (b.sleep_hours !== undefined) out.sleep_hours = num(b.sleep_hours, 'sleep_hours', 0, 24);
+    if (b.water_oz !== undefined) out.water_oz = num(b.water_oz, 'water_oz', 0, 400) || 0;
+    if (b.habits !== undefined) { out.habits = {}; E.HABITS.forEach(function (h) { if (b.habits && b.habits[h[0]]) out.habits[h[0]] = true; }); }
+    if (b.note !== undefined) out.note = String(b.note || '').slice(0, 500);
+    return out;
+  }
+  on('GET', '/api/checkins', function (S, p, b, q) { var ds = q.get('date') || E.todayStr(); E.parse(ds); return E.checkinStats(S, ds); });
+  on('PUT', '/api/checkins/{ds}', async function (S, p, b) { E.parse(p.ds); await E.saveCheckin(S, p.ds, checkinBody(b)); return E.checkinStats(S, p.ds); });
+  on('POST', '/api/checkins/{ds}/water', async function (S, p, b) {
+    E.parse(p.ds);
+    var add = num(b.add, 'add', -400, 400) || 0, cur = (E.checkin(S, p.ds) || {}).water_oz || 0;
+    await E.saveCheckin(S, p.ds, { water_oz: Math.min(400, Math.max(0, cur + add)) });
+    return E.checkinStats(S, p.ds);
+  });
+  on('DELETE', '/api/checkins/{ds}', async function (S, p) { await S.remove('checkins', { date: p.ds }); return E.checkinStats(S, p.ds); });
+  on('GET', '/api/goals', function (S) { return { water_oz: E.waterGoal(S), protein_g: E.proteinGoal(S) }; });
+
   // ---------- blog ----------
   on('GET', '/api/blog', function (S) {
     var fc = E.forecast(S);
@@ -242,7 +263,8 @@
       plan_id: plan ? plan.id : null, today_plan: todayPlan, today_schedule: sched,
       today_lift: lift ? { workout: lift.workout, status: lift.status, exercises: E.workoutTemplate(S, lift.workout) } : null,
       day_no: E.daysBetween(a.start_date, today) + 1,
-      has_my_code: !!E.get(S, 'my_code')
+      has_my_code: !!E.get(S, 'my_code'),
+      checkin: E.checkin(S, today), water_goal: E.waterGoal(S), protein_goal: E.proteinGoal(S)
     };
   });
 })(typeof window !== 'undefined' ? window : globalThis);

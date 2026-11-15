@@ -34,9 +34,14 @@ The free tier's mailer sends a few emails an hour, enough for a small group. For
 
 Training → **Import from Gym ACE** → pick the GymACE.db file (on Windows it is in `%LOCALAPPDATA%\Packages\16549Appatary.GymACE_*\LocalState\`). New sets are added, edited ones updated, deleted ones removed. Sets logged in the app are never touched. The file is read in the browser; only the rows are saved.
 
+## After an update
+
+When a change adds a table (the daily check-in did), open **SQL Editor**, paste all of `supabase/schema.sql` again and press **Run**. It only adds what is missing; nothing that is there is touched.
+
 ## What changed from the old app
 
 - The Python server on the PC is gone. Nothing needs to be running.
 - Sending the list to Bring! is now **Copy the list**: paste it into Bring!, Notes or a message.
 - Publishing the blog saves one HTML page with every post, to put on any web host.
 - My Code is kept with your account (Account page) instead of read from OneDrive.
+- New: the **Check-in** page, with water and protein goals. Protein left blank follows the target weight, 1 g per pound of it.

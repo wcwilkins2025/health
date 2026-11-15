@@ -93,11 +93,25 @@ create table if not exists public.blog_posts (
   primary key (user_id, date)
 );
 
+-- A day's check-in: energy, focus and mood out of 10, hours slept, ounces of water, habits kept ({key: true}).
+create table if not exists public.checkins (
+  user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  date        date not null,
+  energy      int check (energy between 1 and 10),
+  focus       int check (focus between 1 and 10),
+  mood        int check (mood between 1 and 10),
+  sleep_hours real check (sleep_hours between 0 and 24),
+  water_oz    real not null default 0 check (water_oz between 0 and 400),
+  habits      jsonb not null default '{}'::jsonb,
+  note        text not null default '',
+  primary key (user_id, date)
+);
+
 -- ---------- each person's rows are their own ----------
 do $$
 declare t text;
 begin
-  foreach t in array array['settings', 'weight_log', 'bp_log', 'foods_custom', 'meal_prefs', 'plans', 'gym_sets', 'gym_workouts', 'blog_posts'] loop
+  foreach t in array array['settings', 'weight_log', 'bp_log', 'foods_custom', 'meal_prefs', 'plans', 'gym_sets', 'gym_workouts', 'blog_posts', 'checkins'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from anon', t);
     execute format('grant select, insert, update, delete on public.%I to authenticated', t);

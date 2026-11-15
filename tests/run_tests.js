@@ -266,6 +266,38 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     check('the blog note comes over', S.db.blog_posts[0].commentary === 'Day one.');
   });
 
+  await section('8. Daily check-in and the goals', async () => {
+    const { S, api } = fresh();
+    setNow('2026-11-15');
+    await api('PATCH', '/api/settings', { start_weight: 280, target_weight: 180, start_date: '2026-11-10' });
+    let c = await api('GET', '/api/checkins');
+    check('an empty day', c.date === '2026-11-15' && c.today.energy === null && c.today.water_oz === 0 && c.avg7.days === 0);
+    check('water goal 100 oz; protein goal 1 g per pound of the target', c.water_goal === 100 && c.protein_goal === 180 && c.protein_goal_own === false, [c.water_goal, c.protein_goal]);
+    c = await api('PUT', '/api/checkins/2026-11-15', { energy: 7, focus: 6, mood: 8, sleep_hours: 7.5, habits: { sunlight: true, no_alcohol: true, made_up: true } });
+    check('scores, sleep and habits saved; unknown habits dropped', c.today.energy === 7 && c.today.sleep_hours === 7.5 && eq(c.today.habits, { sunlight: true, no_alcohol: true }), c.today);
+    c = await api('POST', '/api/checkins/2026-11-15/water', { add: 16 });
+    c = await api('POST', '/api/checkins/2026-11-15/water', { add: 16 });
+    check('water adds up and keeps the scores', c.today.water_oz === 32 && c.today.energy === 7, c.today);
+    c = await api('POST', '/api/checkins/2026-11-15/water', { add: -100 });
+    check('water never goes below zero', c.today.water_oz === 0);
+    await api('PUT', '/api/checkins/2026-11-14', { energy: 5, sleep_hours: 6, water_oz: 80 });
+    c = await api('GET', '/api/checkins?date=2026-11-15');
+    check('seven-day averages and habit days', c.avg7.days === 2 && c.avg7.energy === 6 && c.avg7.sleep_hours === 6.8 && c.habits.find(h => h.key === 'sunlight').days === 1, c.avg7);
+    check('a score out of range is refused', await throws(() => api('PUT', '/api/checkins/2026-11-15', { mood: 11 }), 422));
+    c = await api('PUT', '/api/checkins/2026-11-15', { mood: null });
+    check('a score can be cleared', c.today.mood === null && c.today.energy === 7);
+    await api('PATCH', '/api/settings', { water_goal_oz: 120, protein_goal_g: 200 });
+    check('own goals win', eq(await api('GET', '/api/goals'), { water_oz: 120, protein_g: 200 }));
+    await api('POST', '/api/checkins/2026-11-15/water', { add: 64 });
+    const post = await api('GET', '/api/blog/2026-11-15');
+    check('the post has the check-in', post.body_md.includes('**Check-in:** Energy 7, focus 6 out of 10. 7.5 hours of sleep. 64 of 120 oz of water. Kept: 10 minutes of sun within an hour of waking; no alcohol.'), post.body_md);
+    check('a check-in day is a post day', (await api('GET', '/api/blog')).some(x => x.date === '2026-11-14'));
+    const s = await api('GET', '/api/summary');
+    check('the dashboard has the check-in and goals', s.checkin.water_oz === 64 && s.water_goal === 120 && s.protein_goal === 200);
+    await api('DELETE', '/api/checkins/2026-11-14');
+    check('a check-in can be deleted', !S.db.checkins.some(x => x.date === '2026-11-14'));
+  });
+
   console.log(failures ? `\n${failures} FAILED` : '\nAll checks pass.');
   process.exit(failures ? 1 : 0);
 })();

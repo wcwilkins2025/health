@@ -154,3 +154,20 @@ header.top .acct a { color: var(--accent); font-family: var(--display); font-wei
 .wk-edit .row { display: grid; grid-template-columns: 1fr 70px 70px auto; gap: 6px; align-items: center; margin-top: 6px; }
 .wk-edit .row input[type=number] { width: 100%; }
 .wk-edit .row .mv { display: flex; gap: 2px; }
+
+/* check-in */
+.h1-date { font: 16px var(--serif); vertical-align: middle; margin-left: 10px; text-transform: none; letter-spacing: 0; }
+.water { display: flex; align-items: baseline; gap: 8px; }
+.water .value { font-family: var(--display); font-size: clamp(32px, 3vw, 48px); font-weight: 700; line-height: 1; }
+.bar { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin: 10px 0; }
+.bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.bar span.done { background: var(--green); }
+.water-add { display: flex; gap: 8px; flex-wrap: wrap; }
+.water-add button { flex: 1; padding: 12px 8px; font-size: 17px; }
+.scale-row { display: grid; grid-template-columns: 4.5em 1fr; gap: 8px; align-items: center; margin-bottom: 8px; }
+.scale-row .k { font-family: var(--display); font-weight: 600; letter-spacing: .1em; text-transform: uppercase; font-size: 14px; color: var(--muted); }
+.scale { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.scale button { padding: 10px 0; min-width: 0; background: transparent; color: var(--ink); border-color: var(--rule); font-size: 16px; }
+.scale button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+tr.today-tr td { background: var(--soft-accent); }
+#nutri-table td.short { color: var(--red); }
