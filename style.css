@@ -171,3 +171,36 @@ header.top .acct a { color: var(--accent); font-family: var(--display); font-wei
 .scale button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 tr.today-tr td { background: var(--soft-accent); }
 #nutri-table td.short { color: var(--red); }
+
+/* log: one exercise open at a time, steppers, the bottom bar */
+.ex.closed { display: flex; gap: 8px; align-items: baseline; cursor: pointer; flex-wrap: wrap; }
+.ex.closed strong { font-family: var(--display); font-size: 18px; letter-spacing: .02em; }
+.ex.closed .sum { color: var(--muted); font-size: 14px; flex: 1; min-width: 0; }
+.ex.closed.done strong::before { content: "✓ "; color: var(--green); }
+.ex .prog { margin-left: auto; font-family: var(--display); font-size: 15px; letter-spacing: .08em; color: var(--muted); }
+.ex.open { border-left: 3px solid var(--accent); padding-left: 10px; }
+.ex.open .ex-head strong { font-size: 22px; }
+.setline { display: grid; grid-template-columns: 2em 1fr auto; gap: 8px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 18px; }
+.setline .n { color: var(--muted); font-family: var(--display); }
+.setline .note { display: block; font-size: 13px; color: var(--muted); }
+.setline .ed { color: var(--accent); font-family: var(--display); font-size: 13px; letter-spacing: .1em; text-transform: uppercase; }
+.setedit { background: var(--soft-accent); border-radius: var(--radius); padding: 10px; margin: 6px 0; }
+.entry { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.lbl { display: block; font-family: var(--display); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.stepper { display: grid; grid-template-columns: 46px minmax(0, 1fr) 46px; }
+.stepper button { padding: 0; font-size: 26px; line-height: 1; background: var(--card); color: var(--accent); border-color: var(--rule); }
+.stepper button:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.stepper button:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.stepper input { width: 100%; min-width: 0; text-align: center; font-family: var(--display); font-size: 24px; font-weight: 700; padding: 10px 2px; border-radius: 0; border-left: 0; border-right: 0; }
+.entry-actions { display: flex; gap: 8px; margin-top: 10px; }
+.entry-actions button { padding: 14px 10px; font-size: 17px; }
+.entry-actions .logset { flex: 2; font-size: 19px; }
+.entry-actions .ghost, .entry-actions .danger { flex: 1; }
+.timer { justify-content: space-between; flex-wrap: wrap; cursor: default; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+.timer .clock, .timer .rest { display: flex; flex-direction: column; line-height: 1.1; }
+.timer .clock { font-size: 20px; opacity: .85; }
+.timer .rest { font-size: 30px; flex: 1; text-align: center; }
+.timer small { font-family: var(--serif); text-transform: none; letter-spacing: 0; font-size: 13px; }
+.timer .tbtns { display: flex; gap: 6px; }
+.timer .tbtns button { background: transparent; color: inherit; border-color: rgba(251,250,246,.55); padding: 10px 12px; font-size: 16px; }
+body.has-bar main { padding-bottom: 120px; }

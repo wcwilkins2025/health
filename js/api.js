@@ -95,10 +95,19 @@
     if (!b.session_ms) throw E.bad('session_ms is required');
     return E.addSet(S, b);
   });
+  /* several sets of the same weight and reps at once: the rest of an exercise's target in one tap */
+  on('POST', '/api/log/sets/batch', async function (S, p, b) {
+    if (!String(b.exercise || '').trim()) throw E.bad('exercise is required');
+    num(b.weight, 'weight', 0, 2000); num(b.reps, 'reps', 0, 1000);
+    if (!b.session_ms) throw E.bad('session_ms is required');
+    var n = Math.round(num(b.count, 'count', 1, 20) || 1), out = [];
+    for (var i = 0; i < n; i++) out.push(await E.addSet(S, b));
+    return out;
+  });
   on('PATCH', '/api/log/sets/{id}', async function (S, p, b) {
     if (!E.getSet(S, p.id)) throw E.bad('No such set', 404);
     var patch = {};
-    if (b.weight != null) patch.weight = num(b.weight, 'weight', 0, 2000);
+    if (b.weight !== undefined) patch.weight = b.weight === null || b.weight === '' ? null : num(b.weight, 'weight', 0, 2000);   // null: a bodyweight set
     if (b.reps != null) patch.reps = Math.round(num(b.reps, 'reps', 0, 1000));
     if (b.note != null) patch.note = String(b.note);
     if (b.exercise != null) patch.exercise = String(b.exercise).trim();

@@ -121,6 +121,13 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     check('the training week sees it (Push done on a Pull day; Monday missed)', tue.workout === 'Push' && tue.status === 'done' && mon.status === 'missed', [mon, tue]);
     check('sessions list', (await api('GET', '/api/gym/sessions')).sessions[0].sets === 2);
     check('edit a set', (await api('PATCH', `/api/log/sets/${s2.id}`, { weight: 105 })).weight === 105);
+    const many = await api('POST', '/api/log/sets/batch', { session_ms: t, workout: 'Push', exercise: 'Dips', weight: null, reps: 12, count: 3 });
+    check('log three sets in one tap, in order', many.length === 3 && many.every(x => x.reps === 12 && x.weight === null) && many[2].set_ms > many[1].set_ms && many[1].set_ms > many[0].set_ms);
+    check('a count over 20 is refused', await throws(() => api('POST', '/api/log/sets/batch', { session_ms: t, workout: 'Push', exercise: 'Dips', reps: 1, count: 50 }), 422));
+    const ed = await api('PATCH', `/api/log/sets/${many[0].id}`, { weight: 25, reps: 10, note: 'belt' });
+    check('edit weight, reps and note together', ed.weight === 25 && ed.reps === 10 && ed.note === 'belt');
+    check('clear the weight for a bodyweight set', (await api('PATCH', `/api/log/sets/${many[0].id}`, { weight: null })).weight === null);
+    for (const m of many) await api('DELETE', `/api/log/sets/${m.id}`);
     check('edit a missing set 404', await throws(() => api('PATCH', '/api/log/sets/99999', { weight: 1 }), 404));
     check('PR is the best set', (await api('GET', '/api/gym/prs')).find(p => p.exercise === 'Bench Press').weight === 105);
     await api('DELETE', `/api/log/sets/${s1.id}`);

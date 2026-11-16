@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Log · Weight Target</title>
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=3">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#7a4219">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,11 +14,11 @@
 <link rel="icon" href="icons/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
-<script src="data/library.js?v=2"></script>
-<script src="js/store.js?v=2"></script>
-<script src="js/engine.js?v=2"></script>
-<script src="js/api.js?v=2"></script>
-<script src="js/app.js?v=2"></script>
+<script src="data/library.js?v=3"></script>
+<script src="js/store.js?v=3"></script>
+<script src="js/engine.js?v=3"></script>
+<script src="js/api.js?v=3"></script>
+<script src="js/app.js?v=3"></script>
 </head>
 <body>
 <main>
@@ -30,8 +30,19 @@
   <div class="card" id="start-card" style="margin-bottom:14px">
     <h2 id="start-title">Start a workout</h2>
     <div class="starts" id="starts"></div>
-    <p class="small muted" style="margin:10px 0 0">Tap the workout you are doing. The one with the yellow ring is what this week's plan has for today. Every exercise shows last time's sets as the numbers to beat; a rest timer starts after each set.</p>
+    <p class="small muted" style="margin:10px 0 0">Tap the workout you are doing. The one with the yellow ring is what this week's plan has for today. Each exercise opens with last time's numbers filled in: adjust with − and +, then tap Log set. The rest timer starts on its own.</p>
   </div>
+
+  <details class="card" id="set-card" style="margin-bottom:14px">
+    <summary style="cursor:pointer"><h2 style="display:inline">Timer and steps</h2> <span class="muted small">rest times, weight step, beep</span></summary>
+    <div class="row" style="margin-top:10px">
+      <label>Rest between sets (sec) <input type="number" id="c-sets" min="10" max="900" step="5" inputmode="numeric"></label>
+      <label>Rest before the next exercise (sec) <input type="number" id="c-ex" min="10" max="900" step="5" inputmode="numeric"></label>
+      <label>Weight step (lb) <select id="c-step"><option value="1">1</option><option value="2.5">2.5</option><option value="5">5</option><option value="10">10</option></select></label>
+    </div>
+    <label class="check"><input type="checkbox" id="c-sound"> Beep when the rest is over</label>
+    <p class="small muted" style="margin:8px 0 0">Kept on this device. While a workout is going the screen stays on, and the phone vibrates at the end of a rest where it can (Android; iPhone only beeps).</p>
+  </details>
 
   <details class="card" id="wk-card" style="margin-bottom:14px">
     <summary style="cursor:pointer"><h2 style="display:inline">Your workouts</h2> <span class="muted small">exercises, sets and reps</span></summary>
@@ -42,15 +53,33 @@
 
   <datalist id="ex-names"></datalist>
 </main>
-<div class="timer" id="timer" style="display:none"></div>
+
+<div class="timer" id="timer" style="display:none">
+  <div class="clock" id="t-clock"><small>Workout</small><span id="t-clock-v"></span></div>
+  <div class="rest"><small id="t-label"></small><span id="t-rest"></span></div>
+  <div class="tbtns" id="t-run"><button type="button" onclick="addRest(-15)">−15</button><button type="button" onclick="addRest(15)">+15</button><button type="button" onclick="skipRest()">Skip</button></div>
+  <div class="tbtns" id="t-done"><button type="button" onclick="skipRest()">OK</button></div>
+  <div class="tbtns" id="t-idle"><button type="button" id="t-sets" onclick="startRest(cfg().sets, 'Next set')"></button><button type="button" id="t-ex" onclick="startRest(cfg().ex, 'Next exercise')"></button></div>
+</div>
+
 <script>
-let D = null, ds = new URLSearchParams(location.search).get("date") || todayStr(), pending = null, timer = null, timerEnd = 0;
-const REST_KEY = "wt_rest_seconds";
-const restSeconds = () => Number(localStorage.getItem(REST_KEY) || 90);
+let D = null, ds = new URLSearchParams(location.search).get("date") || todayStr(), pending = null;
+let open = {};     // session_ms -> the exercise shown open ("" = none)
+let entry = {};    // "session|exercise|set number" -> {weight, reps} waiting to be logged
+let extra = {};    // session_ms -> exercises added by hand that have no sets yet
+let editId = null, editVals = null;
+
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} },
+};
+const cfg = () => ({ sets: Number(LS.get("wt_rest_seconds", 90)), ex: Number(LS.get("wt_rest_ex_seconds", 150)), step: Number(LS.get("wt_weight_step", 5)), sound: LS.get("wt_sound", "1") === "1" });
 const fmt = n => n == null || n === "" ? "" : Number(n);
 // a JS string literal safe inside an HTML attribute (the parser decodes the entities before JS sees it)
 const jsArg = x => esc(JSON.stringify(x));
 const setStr = s => `${s.weight == null ? "body" : fmt(s.weight)}×${s.reps ?? "?"}`;
+const mmss = sec => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0"); };
 
 async function load() {
   D = await api(`/api/log/${ds}`);
@@ -64,6 +93,31 @@ function sessionsToShow() {
   if (pending && !out.some(s => s.session_ms === pending.session_ms)) out.push({ ...pending, exercises: [], sets: 0, volume: 0 });
   return out;
 }
+function template(workout) { return (D.workouts.find(w => w.workout === workout) || { exercises: [] }).exercises; }
+
+/* a session's exercises: the workout's in order, then anything else done or added */
+function exList(s) {
+  const tpl = template(s.workout), names = tpl.map(e => e.exercise);
+  for (const e of s.exercises) if (!names.includes(e.exercise)) names.push(e.exercise);
+  for (const n of extra[s.session_ms] || []) if (!names.includes(n)) names.push(n);
+  return names.map(n => {
+    const t = tpl.find(e => e.exercise === n), d = s.exercises.find(e => e.exercise === n);
+    return { name: n, tpl: t || null, sets: d ? d.sets : [], last: (d && d.last) || (t && t.last) || null, target: t && t.target_sets ? t.target_sets : null };
+  });
+}
+const unfinished = x => x.target ? x.sets.length < x.target : !x.sets.length;
+function openName(s, list) {
+  const o = open[s.session_ms];
+  if (o === "" || list.some(x => x.name === o)) return o;
+  return ((list.find(unfinished) || list[list.length - 1]) || {}).name;
+}
+/* the numbers to start from: repeat the set just logged; before any, last time's first set; else the target reps */
+function suggest(x) {
+  const n = x.sets.length;
+  if (n) { const p = x.sets[n - 1]; return { weight: p.weight, reps: p.reps }; }
+  if (x.last && x.last.sets.length) return { weight: x.last.sets[0].weight, reps: x.last.sets[0].reps };
+  return { weight: null, reps: x.tpl ? x.tpl.target_reps : null };
+}
 
 function render() {
   const shown = sessionsToShow();
@@ -72,117 +126,194 @@ function render() {
   el("start-title").textContent = anyOpen ? "Start another workout" : "Start a workout";
   el("starts").innerHTML = D.workouts.map(w => `<button type="button" class="${w.workout === D.planned && !anyOpen ? "planned" : ""}" onclick="start(${jsArg(w.workout)})">${esc(w.workout)}${w.workout === D.planned && !anyOpen ? `<br><span class="small" style="font-weight:400;letter-spacing:0;text-transform:none">today's plan</span>` : ""}</button>`).join("") +
     `<button type="button" class="ghost" onclick="startOther()">Other…</button>`;
-  if (anyOpen) el("start-card").querySelector("p").style.display = "none";
+  el("start-card").querySelector("p").style.display = anyOpen ? "none" : "";
   renderEditor();
+  tick();
 }
 
-function template(workout) { return (D.workouts.find(w => w.workout === workout) || { exercises: [] }).exercises; }
-
 function renderSession(s) {
-  // the workout's exercises in order, then anything else done in this session
-  const tpl = template(s.workout);
-  const names = [...tpl.map(e => e.exercise)];
-  for (const e of s.exercises) if (!names.includes(e.exercise)) names.push(e.exercise);
-  const when = new Date(s.session_ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  return `<div class="card" style="margin-bottom:14px" data-ses="${s.session_ms}">
-    <div class="ses-head"><h2>${esc(s.workout || "Workout")}</h2><span class="muted small">${when}${s.sets ? ` · ${s.sets} sets · ${Math.round(s.volume).toLocaleString()} lb` : ""}</span>
-      <a href="training.html"><button type="button" class="small">Done</button></a>
-      <button type="button" class="small danger" onclick="removeSession(${s.session_ms})">Delete</button></div>
-    ${names.map(n => renderExercise(s, n, tpl.find(e => e.exercise === n), s.exercises.find(e => e.exercise === n))).join("")}
+  const ms = s.session_ms, list = exList(s), cur = openName(s, list), planned = list.reduce((a, x) => a + (x.target || 0), 0);
+  const when = new Date(ms).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `<div class="card" style="margin-bottom:14px" data-ses="${ms}">
+    <div class="ses-head"><h2>${esc(s.workout || "Workout")}</h2><span class="muted small">${when}${s.sets ? ` · ${s.sets}${planned ? " of " + planned : ""} sets · ${Math.round(s.volume).toLocaleString()} lb` : ""}</span>
+      <button type="button" class="small" onclick="finish()">Done</button>
+      <button type="button" class="small danger" onclick="removeSession(${ms})">Delete</button></div>
+    ${list.map(x => x.name === cur ? renderOpen(s, x) : renderClosed(s, x)).join("")}
     <div class="ex" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <input list="ex-names" id="addex-${s.session_ms}" placeholder="Another exercise" style="flex:1;min-width:160px">
-      <button type="button" class="ghost small" onclick="addExercise(${s.session_ms})">Add exercise</button>
+      <input list="ex-names" id="addex-${ms}" placeholder="Another exercise" style="flex:1;min-width:160px">
+      <button type="button" class="ghost small" onclick="addExercise(${ms})">Add exercise</button>
     </div>
   </div>`;
 }
 
-function renderExercise(s, name, tplEx, done) {
-  const sets = done ? done.sets : [];
-  const last = (done && done.last) || (tplEx && tplEx.last);
-  const target = tplEx && tplEx.target_sets ? `${tplEx.target_sets} × ${tplEx.target_reps ?? "?"}` : (tplEx && tplEx.note ? tplEx.note : "");
-  return `<div class="ex">
-    <div class="ex-head"><strong>${esc(name)}</strong>${target ? `<span class="muted small">${esc(target)}</span>` : ""}
-      ${last ? `<span class="last">last ${fmtDate(last.date)}: ${last.sets.map(setStr).join(", ")}</span>` : `<span class="last">first time</span>`}</div>
-    ${sets.map((x, i) => `<div class="setrow"><span class="n">${i + 1}</span>
-      <input type="number" inputmode="decimal" step="0.5" value="${x.weight ?? ""}" placeholder="lb" onchange="saveSet(${x.id}, 'weight', this.value)">
-      <span class="x">×</span>
-      <input type="number" inputmode="numeric" step="1" value="${x.reps ?? ""}" placeholder="reps" onchange="saveSet(${x.id}, 'reps', this.value)">
-      <button type="button" class="small danger" onclick="removeSet(${x.id})">✕</button></div>`).join("")}
-    <button type="button" class="addset ghost" onclick="addSet(${s.session_ms}, ${jsArg(s.workout)}, ${jsArg(name)})">Add set${nextGuess(sets, last, tplEx) ? ` · ${nextGuess(sets, last, tplEx)}` : ""}</button>
+function renderClosed(s, x) {
+  const sum = x.sets.length ? x.sets.map(setStr).join(", ") : x.last ? `last ${x.last.sets.map(setStr).join(", ")}` : (x.tpl && x.tpl.note) || "";
+  return `<div class="ex closed${unfinished(x) ? "" : " done"}" onclick="openEx(${s.session_ms}, ${jsArg(x.name)})">
+    <strong>${esc(x.name)}</strong><span class="sum">${esc(sum)}</span><span class="prog">${x.sets.length}${x.target ? "/" + x.target : ""}</span></div>`;
+}
+
+function renderOpen(s, x) {
+  const ms = s.session_ms, n = x.sets.length, key = `${ms}|${x.name}|${n}`;
+  if (!entry[key]) entry[key] = suggest(x);
+  const v = entry[key], left = x.target ? x.target - n : 0, editing = x.sets.some(st => st.id === editId);
+  const target = x.target ? `${x.target} × ${x.tpl.target_reps ?? "?"}` : (x.tpl && x.tpl.note) || "";
+  const lastAt = x.last && x.last.sets[n] ? `Last time, set ${n + 1}: ${setStr(x.last.sets[n])}` : "";
+  return `<div class="ex open">
+    <div class="ex-head" onclick="openEx(${ms}, '')" style="cursor:pointer"><strong>${esc(x.name)}</strong>${target ? `<span class="muted small">${esc(target)}</span>` : ""}<span class="prog">${n}${x.target ? "/" + x.target : ""}</span></div>
+    <div class="last">${x.last ? `last ${fmtDate(x.last.date)}: ${x.last.sets.map(setStr).join(", ")}` : "first time"}</div>
+    ${x.sets.map((st, i) => st.id === editId ? renderEdit(st, i) : `<div class="setline" onclick="editSet(${st.id})"><span class="n">${i + 1}</span>
+      <span>${st.weight == null ? "body" : fmt(st.weight) + " lb"} × ${st.reps ?? "?"}${st.note ? `<span class="note">${esc(st.note)}</span>` : ""}</span><span class="ed">Edit</span></div>`).join("")}
+    ${editing ? "" : `<div class="entry">${stepper("weight", key, v.weight)}${stepper("reps", key, v.reps)}</div>
+    ${lastAt ? `<div class="small muted" style="margin-top:6px">${lastAt}</div>` : ""}
+    <div class="entry-actions"><button type="button" class="logset" onclick="logSet(${ms}, ${jsArg(x.name)}, 1)">Log set ${n + 1}</button>${left > 1 ? `<button type="button" class="ghost" onclick="logSet(${ms}, ${jsArg(x.name)}, ${left})">Log all ${left}</button>` : ""}</div>`}
   </div>`;
 }
 
-function guess(sets, last, tplEx) {
-  // the next set: repeat the last one logged; before that, last time's set in this position; else the target
-  if (sets.length) { const p = sets[sets.length - 1]; return { weight: p.weight, reps: p.reps }; }
-  if (last && last.sets.length) return { weight: last.sets[0].weight, reps: last.sets[0].reps };
-  return { weight: null, reps: tplEx ? tplEx.target_reps : null };
-}
-function nextGuess(sets, last, tplEx) {
-  if (!sets.length && last && last.sets.length) return setStr(last.sets[0]);
-  if (sets.length && last && last.sets[sets.length]) return setStr(last.sets[sets.length]);
-  const g = guess(sets, last, tplEx);
-  return g.weight != null || g.reps != null ? setStr(g) : "";
+function renderEdit(st, i) {
+  return `<div class="setedit"><div class="ex-head"><strong>Set ${i + 1}</strong><span class="muted small">change it and save</span></div>
+    <div class="entry">${stepper("weight", "edit", editVals.weight)}${stepper("reps", "edit", editVals.reps)}</div>
+    <label style="margin-top:8px">Note <input type="text" value="${esc(editVals.note || "")}" placeholder="optional" oninput="editVals.note = this.value"></label>
+    <div class="entry-actions"><button type="button" class="logset" onclick="saveEdit()">Save</button><button type="button" class="ghost" onclick="editId = null; render()">Cancel</button><button type="button" class="danger" onclick="removeSet(${st.id})">Delete</button></div></div>`;
 }
 
+function stepper(kind, key, val) {
+  const w = kind === "weight";
+  return `<div><span class="lbl">${w ? "Weight, lb" : "Reps"}</span><div class="stepper">
+    <button type="button" aria-label="${w ? "less weight" : "fewer reps"}" onclick="bump(${jsArg(key)}, '${kind}', -1)">−</button>
+    <input type="number" inputmode="${w ? "decimal" : "numeric"}" step="${w ? "any" : "1"}" min="0" value="${val ?? ""}" placeholder="${w ? "body" : "0"}" onfocus="this.select()" oninput="setVal(${jsArg(key)}, '${kind}', this.value)">
+    <button type="button" aria-label="${w ? "more weight" : "more reps"}" onclick="bump(${jsArg(key)}, '${kind}', 1)">+</button></div></div>`;
+}
+const vals = key => key === "edit" ? editVals : entry[key];
+function setVal(key, kind, v) { vals(key)[kind] = v === "" ? null : Number(v); }
+function bump(key, kind, d) {
+  const o = vals(key), step = kind === "weight" ? cfg().step : 1;
+  o[kind] = Math.max(0, Math.round(((o[kind] || 0) + d * step) * 100) / 100);
+  render();
+}
+
+function openEx(ms, name) { open[ms] = name; editId = null; render(); }
 function start(workout) {
   pending = { session_ms: ds === todayStr() ? Date.now() : new Date(ds + "T12:00").getTime(), workout };
-  render();
+  unlockAudio(); render();
   const card = document.querySelector(`[data-ses="${pending.session_ms}"]`);
   if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function startOther() { const w = prompt("Workout name"); if (w && w.trim()) start(w.trim()); }
+function finish() { skipRest(); location.href = "training.html"; }
 
-async function addSet(session_ms, workout, exercise) {
-  const s = sessionsToShow().find(x => x.session_ms === session_ms);
-  const done = s && s.exercises.find(e => e.exercise === exercise);
-  const tplEx = template(workout).find(e => e.exercise === exercise);
-  const last = (done && done.last) || (tplEx && tplEx.last);
-  const sets = done ? done.sets : [];
-  const g = (!sets.length || !last || !last.sets[sets.length]) ? guess(sets, last, tplEx) : last.sets[sets.length];
+async function logSet(ms, name, count) {
+  unlockAudio();
+  const s = sessionsToShow().find(x => x.session_ms === ms), x = exList(s).find(e => e.name === name);
+  const v = entry[`${ms}|${name}|${x.sets.length}`] || suggest(x);
+  if (!(v.reps > 0)) { flash("msg", "How many reps?", "err"); return; }
   try {
-    await api("/api/log/sets", { method: "POST", body: { session_ms, workout, exercise, weight: g.weight, reps: g.reps } });
-    if (pending && pending.session_ms === session_ms) pending = null;
+    await api("/api/log/sets/batch", { method: "POST", body: { session_ms: ms, workout: s.workout, exercise: name, weight: v.weight, reps: v.reps, count } });
+    if (pending && pending.session_ms === ms) pending = null;
+    open[ms] = name;
     await load();
-    startTimer();
-    const inp = document.querySelector(`[data-ses="${session_ms}"] .setrow:last-of-type input`);
+    const list = exList(D.sessions.find(z => z.session_ms === ms)), x2 = list.find(e => e.name === name);
+    if (x2.target && x2.sets.length >= x2.target) {
+      const next = list.find(unfinished);
+      if (next) { open[ms] = next.name; render(); startRest(cfg().ex, `next: ${next.name}`); }
+      else { open[ms] = ""; render(); skipRest(); flash("msg", "Every planned set is in. Tap Done when you finish."); }
+    } else startRest(cfg().sets, `${name}, set ${x2.sets.length + 1}`);
   } catch (e) { flash("msg", e.message, "err"); }
 }
-async function saveSet(id, field, value) {
-  const body = {}; body[field] = value === "" ? (field === "weight" ? 0 : 0) : Number(value);
-  try { await api(`/api/log/sets/${id}`, { method: "PATCH", body }); await load(); } catch (e) { flash("msg", e.message, "err"); }
+function editSet(id) {
+  for (const s of D.sessions) for (const e of s.exercises) for (const st of e.sets)
+    if (st.id === id) { editId = id; editVals = { weight: st.weight, reps: st.reps, note: st.note || "" }; open[s.session_ms] = e.exercise; }
+  render();
+}
+async function saveEdit() {
+  try {
+    await api(`/api/log/sets/${editId}`, { method: "PATCH", body: { weight: editVals.weight, reps: editVals.reps ?? 0, note: editVals.note || "" } });
+    editId = null; await load(); flash("msg", "Set saved.");
+  } catch (e) { flash("msg", e.message, "err"); }
 }
 async function removeSet(id) {
-  try { await api(`/api/log/sets/${id}`, { method: "DELETE" }); await load(); } catch (e) { flash("msg", e.message, "err"); }
+  if (!confirm("Delete this set?")) return;
+  try { await api(`/api/log/sets/${id}`, { method: "DELETE" }); if (editId === id) editId = null; await load(); } catch (e) { flash("msg", e.message, "err"); }
 }
 async function removeSession(session_ms) {
   if (pending && pending.session_ms === session_ms) { pending = null; render(); return; }
   if (!confirm("Delete this whole session?")) return;
-  try { await api(`/api/log/sessions/${session_ms}`, { method: "DELETE" }); await load(); } catch (e) { flash("msg", e.message, "err"); }
+  try { await api(`/api/log/sessions/${session_ms}`, { method: "DELETE" }); skipRest(); await load(); } catch (e) { flash("msg", e.message, "err"); }
 }
-async function addExercise(session_ms) {
-  const inp = el(`addex-${session_ms}`), name = inp.value.trim();
+function addExercise(ms) {
+  const name = el(`addex-${ms}`).value.trim();
   if (!name) return;
-  const s = sessionsToShow().find(x => x.session_ms === session_ms);
-  await addSet(session_ms, s.workout, name);
+  extra[ms] = extra[ms] || [];
+  if (!extra[ms].includes(name)) extra[ms].push(name);
+  open[ms] = name; render();
 }
 
-// ---- rest timer ----
-function startTimer() {
-  clearInterval(timer);
-  timerEnd = Date.now() + restSeconds() * 1000;
-  const t = el("timer"); t.style.display = ""; t.className = "timer";
-  const tick = () => {
-    const left = Math.ceil((timerEnd - Date.now()) / 1000);
-    if (left <= 0) { t.className = "timer done"; t.innerHTML = `Go <small>tap to hide</small>`; clearInterval(timer); if (navigator.vibrate) navigator.vibrate([200, 100, 200]); return; }
-    t.innerHTML = `Rest ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} <small>tap to skip · hold to set</small>`;
-  };
-  tick(); timer = setInterval(tick, 250);
+// ---- the bar at the bottom: workout clock and rest timer ----
+let restEnd = Number(LS.get("wt_rest_end", 0)), restLabel = LS.get("wt_rest_label", ""), beeped = false, actx = null;
+if (restEnd && Date.now() - restEnd > 60000) restEnd = 0;
+function startRest(sec, label) {
+  unlockAudio();
+  restEnd = Date.now() + sec * 1000; restLabel = label; beeped = false;
+  LS.set("wt_rest_end", restEnd); LS.set("wt_rest_label", label); tick();
 }
-el("timer").addEventListener("click", () => { clearInterval(timer); el("timer").style.display = "none"; });
-let hold;
-el("timer").addEventListener("pointerdown", () => { hold = setTimeout(() => { const v = prompt("Rest between sets, in seconds", restSeconds()); if (v && Number(v) > 0) localStorage.setItem(REST_KEY, String(Math.round(Number(v)))); }, 700); });
-el("timer").addEventListener("pointerup", () => clearTimeout(hold));
+function addRest(d) { if (!restEnd) return; restEnd = Math.max(Date.now() + 1000, restEnd + d * 1000); LS.set("wt_rest_end", restEnd); tick(); }
+function skipRest() { restEnd = 0; LS.set("wt_rest_end", 0); tick(); }
+
+/* the session being worked now: today's latest, touched in the last 45 minutes */
+function activeMs() {
+  if (!D || ds !== todayStr()) return null;
+  const all = sessionsToShow();
+  if (!all.length) return null;
+  const s = all[all.length - 1], touched = Math.max(s.session_ms, ...s.exercises.flatMap(e => e.sets.map(x => x.set_ms || 0)));
+  return Date.now() - touched < 45 * 60000 ? s.session_ms : null;
+}
+const show = (id, on) => { const e = el(id); if (e.style.display !== (on ? "" : "none")) e.style.display = on ? "" : "none"; };
+const text = (id, t) => { const e = el(id); if (e.textContent !== t) e.textContent = t; };
+function tick() {
+  const bar = el("timer"), act = activeMs(), now = Date.now();
+  if (!act && !restEnd) { show("timer", false); document.body.classList.remove("has-bar"); keepAwake(false); return; }
+  show("timer", true); document.body.classList.add("has-bar"); keepAwake(!!act);
+  show("t-clock", !!act); if (act) text("t-clock-v", mmss((now - act) / 1000));
+  const left = restEnd ? (restEnd - now) / 1000 : null, done = left !== null && left <= 0;
+  if (done && left < -60) { skipRest(); return; }
+  if (done && !beeped) { beeped = true; beep(); }
+  bar.classList.toggle("done", done);
+  show("t-run", left !== null && !done); show("t-done", done); show("t-idle", left === null);
+  if (left === null) { text("t-label", "Rest timer"); text("t-rest", ""); text("t-sets", mmss(cfg().sets)); text("t-ex", mmss(cfg().ex)); }
+  else { text("t-label", done ? `Go · ${restLabel}` : `Rest · ${restLabel}`); text("t-rest", done ? "Go" : mmss(Math.ceil(left))); }
+}
+setInterval(tick, 250);
+
+function unlockAudio() {
+  try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === "suspended") actx.resume(); } catch (e) {}
+}
+function beep() {
+  if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+  if (!cfg().sound || !actx) return;
+  try {
+    [0, 0.3, 0.6].forEach(t => {
+      const o = actx.createOscillator(), g = actx.createGain(), at = actx.currentTime + t;
+      o.frequency.value = 880; o.connect(g); g.connect(actx.destination);
+      g.gain.setValueAtTime(0.4, at); g.gain.exponentialRampToValueAtTime(0.001, at + 0.22);
+      o.start(at); o.stop(at + 0.24);
+    });
+  } catch (e) {}
+}
+let wake = null, waking = false;
+async function keepAwake(on) {
+  try {
+    if (on && !wake && !waking && navigator.wakeLock && document.visibilityState === "visible") {
+      waking = true; wake = await navigator.wakeLock.request("screen"); wake.addEventListener("release", () => { wake = null; });
+    } else if (!on && wake) { const w = wake; wake = null; await w.release(); }
+  } catch (e) {} finally { waking = false; }
+}
+
+// ---- timer and step settings, kept on this device ----
+function loadCfg() { const c = cfg(); el("c-sets").value = c.sets; el("c-ex").value = c.ex; el("c-step").value = String(c.step); el("c-sound").checked = c.sound; }
+el("c-sets").addEventListener("change", e => { if (+e.target.value >= 10) LS.set("wt_rest_seconds", Math.round(+e.target.value)); loadCfg(); tick(); });
+el("c-ex").addEventListener("change", e => { if (+e.target.value >= 10) LS.set("wt_rest_ex_seconds", Math.round(+e.target.value)); loadCfg(); tick(); });
+el("c-step").addEventListener("change", e => LS.set("wt_weight_step", e.target.value));
+el("c-sound").addEventListener("change", e => { LS.set("wt_sound", e.target.checked ? "1" : "0"); if (e.target.checked) { unlockAudio(); beep(); } });
+loadCfg();
 
 // ---- workouts editor ----
 let editing = {};   // workout name -> working copy of exercises
@@ -236,7 +367,12 @@ el("wk-new").addEventListener("click", () => {
   editing[n] = { name: "", exercises: [{ exercise: "", target_sets: 3, target_reps: 10 }], isNew: true }; renderEditor();
 });
 
-el("date").addEventListener("change", () => { ds = el("date").value || todayStr(); pending = null; history.replaceState(null, "", ds === todayStr() ? "log.html" : `log.html?date=${ds}`); load().catch(e => flash("msg", e.message, "err")); });
+el("date").addEventListener("change", () => {
+  ds = el("date").value || todayStr(); pending = null; open = {}; entry = {}; extra = {}; editId = null;
+  history.replaceState(null, "", ds === todayStr() ? "log.html" : `log.html?date=${ds}`);
+  load().catch(e => flash("msg", e.message, "err"));
+});
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { wake = null; tick(); } });
 load().catch(e => flash("msg", e.message, "err"));
 </script>
 </body>
