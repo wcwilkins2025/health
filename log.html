@@ -25,13 +25,20 @@
   <h1>Log <span class="muted small"><input type="date" id="date" style="font-size:15px;padding:4px 8px"></span></h1>
   <div id="msg" class="msg" style="display:none"></div>
 
-  <div id="sessions"></div>
-
   <div class="card" id="start-card" style="margin-bottom:14px">
     <h2 id="start-title">Start a workout</h2>
     <div class="starts" id="starts"></div>
     <p class="small muted" style="margin:10px 0 0">Tap the workout you are doing. The one with the yellow ring is what this week's plan has for today. Each exercise opens with last time's numbers filled in: adjust with − and +, then tap Log set. The rest timer starts on its own.</p>
   </div>
+
+  <details class="card" id="wk-card" style="margin-bottom:14px">
+    <summary style="cursor:pointer"><h2 style="display:inline">Your workouts</h2> <span class="muted small">exercises, sets and reps</span></summary>
+    <div id="wk-edit" class="wk-edit" style="margin-top:10px"></div>
+    <button class="ghost small" id="wk-new" style="margin-top:10px">New workout</button>
+    <p class="small muted" style="margin:10px 0 0">These names are what the rotation on the Training page uses. Rename a workout and its history follows.</p>
+  </details>
+
+  <div id="sessions"></div>
 
   <details class="card" id="set-card" style="margin-bottom:14px">
     <summary style="cursor:pointer"><h2 style="display:inline">Timer and steps</h2> <span class="muted small">rest times, weight step, beep</span></summary>
@@ -42,13 +49,6 @@
     </div>
     <label class="check"><input type="checkbox" id="c-sound"> Beep when the rest is over</label>
     <p class="small muted" style="margin:8px 0 0">Kept on this device. While a workout is going the screen stays on, and the phone vibrates at the end of a rest where it can (Android; iPhone only beeps).</p>
-  </details>
-
-  <details class="card" id="wk-card" style="margin-bottom:14px">
-    <summary style="cursor:pointer"><h2 style="display:inline">Your workouts</h2> <span class="muted small">exercises, sets and reps</span></summary>
-    <div id="wk-edit" class="wk-edit" style="margin-top:10px"></div>
-    <button class="ghost small" id="wk-new" style="margin-top:10px">New workout</button>
-    <p class="small muted" style="margin:10px 0 0">These names are what the rotation on the Training page uses. Rename a workout and its history follows.</p>
   </details>
 
   <datalist id="ex-names"></datalist>
@@ -102,8 +102,16 @@ function exList(s) {
   for (const n of extra[s.session_ms] || []) if (!names.includes(n)) names.push(n);
   return names.map(n => {
     const t = tpl.find(e => e.exercise === n), d = s.exercises.find(e => e.exercise === n);
-    return { name: n, tpl: t || null, sets: d ? d.sets : [], last: (d && d.last) || (t && t.last) || null, target: t && t.target_sets ? t.target_sets : null };
+    const tg = targetOf(t);
+    return { name: n, tpl: t || null, sets: d ? d.sets : [], last: (d && d.last) || (t && t.last) || null, target: tg ? tg.sets : null, treps: tg ? tg.reps : null };
   });
+}
+/* a target in numbers, or read from a note like "5 Sets 10 Reps" or "3 sets of 12" (Gym ACE keeps them as notes) */
+function targetOf(t) {
+  if (!t) return null;
+  if (t.target_sets) return { sets: t.target_sets, reps: t.target_reps ?? null };
+  const m = /(\d+)\s*sets?\D{0,6}?(\d+)\s*reps?/i.exec(t.note || "");
+  return m ? { sets: +m[1], reps: +m[2] } : null;
 }
 const unfinished = x => x.target ? x.sets.length < x.target : !x.sets.length;
 function openName(s, list) {
@@ -116,7 +124,7 @@ function suggest(x) {
   const n = x.sets.length;
   if (n) { const p = x.sets[n - 1]; return { weight: p.weight, reps: p.reps }; }
   if (x.last && x.last.sets.length) return { weight: x.last.sets[0].weight, reps: x.last.sets[0].reps };
-  return { weight: null, reps: x.tpl ? x.tpl.target_reps : null };
+  return { weight: null, reps: x.treps ?? null };
 }
 
 function render() {
@@ -156,7 +164,7 @@ function renderOpen(s, x) {
   const ms = s.session_ms, n = x.sets.length, key = `${ms}|${x.name}|${n}`;
   if (!entry[key]) entry[key] = suggest(x);
   const v = entry[key], left = x.target ? x.target - n : 0, editing = x.sets.some(st => st.id === editId);
-  const target = x.target ? `${x.target} × ${x.tpl.target_reps ?? "?"}` : (x.tpl && x.tpl.note) || "";
+  const target = x.target ? `${x.target} × ${x.treps ?? "?"}` : (x.tpl && x.tpl.note) || "";
   const lastAt = x.last && x.last.sets[n] ? `Last time, set ${n + 1}: ${setStr(x.last.sets[n])}` : "";
   return `<div class="ex open">
     <div class="ex-head" onclick="openEx(${ms}, '')" style="cursor:pointer"><strong>${esc(x.name)}</strong>${target ? `<span class="muted small">${esc(target)}</span>` : ""}<span class="prog">${n}${x.target ? "/" + x.target : ""}</span></div>
