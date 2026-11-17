@@ -5,7 +5,7 @@ const NAV = [
   ["plan.html", "Meal plan"], ["recipes.html", "Recipes"], ["shopping.html", "Shopping"], ["foods.html", "Foods"], ["kitchen.html", "Kitchen"], ["blog.html", "Blog"],
 ];
 
-if (window.Chart) { Chart.defaults.font.family = '"Source Serif 4", Georgia, serif'; Chart.defaults.color = "#5a5f64"; Chart.defaults.borderColor = "#d3cdbf"; }
+if (window.Chart) { Chart.defaults.font.family = '"Source Serif 4", Georgia, serif'; Chart.defaults.color = cssVar("--muted"); Chart.defaults.borderColor = cssVar("--line"); }
 
 const PAGE = (location.pathname.split("/").pop() || "index.html");
 const CFG = window.HT_CONFIG || {};

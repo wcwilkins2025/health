@@ -1060,7 +1060,7 @@
       return '<p>' + lines.map(mdInline).join('<br>') + '</p>';
     }).join('\n');
   };
-  var SITE_CSS = ':root{--paper:#fbfaf6;--ink:#1c1f22;--muted:#5a5f64;--rule:#b8b2a4;--accent:#7a4219;--bg:#d9d5cc;--display:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--serif:"Source Serif 4",Georgia,"Times New Roman",serif}' +
+  var SITE_CSS = ':root{--paper:#fffaf0;--ink:#2b2a24;--muted:#5d5848;--rule:#e0d5bd;--accent:#9a4f1f;--bg:#f5efe2;--display:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--serif:"Source Serif 4",Georgia,"Times New Roman",serif}' +
     '*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 var(--serif)}.sheet{background:var(--paper);max-width:760px;margin:24px auto;padding:36px 40px;box-shadow:0 10px 40px rgba(0,0,0,.25)}' +
     'header{border-bottom:2px solid var(--ink);padding-bottom:10px;margin-bottom:18px}.eyebrow{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--accent);margin:0 0 4px}' +
     'h1{font-family:var(--display);font-weight:700;font-size:40px;line-height:.95;letter-spacing:.04em;text-transform:uppercase;margin:0}h2{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:28px 0 6px;padding-bottom:2px;border-bottom:1px solid var(--rule)}' +

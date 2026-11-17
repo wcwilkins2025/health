@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Training · Steadfast Health</title>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=9">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#7a4219">
+<meta name="theme-color" content="#2f4a32">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Steadfast">
@@ -17,9 +17,9 @@
 <script src="config.js"></script>
 <script src="data/library.js?v=6"></script>
 <script src="js/store.js?v=8"></script>
-<script src="js/engine.js?v=7"></script>
+<script src="js/engine.js?v=9"></script>
 <script src="js/api.js?v=7"></script>
-<script src="js/app.js?v=6"></script>
+<script src="js/app.js?v=9"></script>
 <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
 <script src="js/import.js?v=6"></script>
 <style>
@@ -163,7 +163,7 @@ async function load() {
   el("prs").innerHTML = prs.map(p => `<tr><td>${esc(p.exercise)} ${p.new ? '<span class="pill green">new</span>' : ""}</td><td class="num">${p.weight ? p.weight : "body"}</td><td class="num">${p.reps ?? ""}</td><td class="muted">${fmtDate(p.date)}</td></tr>`).join("")
     || `<tr><td colspan="4" class="muted">No records yet.</td></tr>`;
   const data = { labels: weekly.map(w => "Wk of " + fmtDate(w.week_start)), datasets: [
-    { label: "Volume", data: weekly.map(w => w.volume), backgroundColor: "#7a4219", borderRadius: 4 } ] };
+    { label: "Volume", data: weekly.map(w => w.volume), backgroundColor: cssVar("--accent"), borderRadius: 4 } ] };
   if (chart) { chart.data = data; chart.update(); }
   else chart = new Chart(el("chart"), { type: "bar", data, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false },
     tooltip: { callbacks: { afterLabel: ctx => { const w = weekly[ctx.dataIndex]; return `${w.sessions} session${w.sessions === 1 ? "" : "s"}, ${w.sets} sets`; } } } },

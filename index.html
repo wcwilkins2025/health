@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Steadfast Health</title>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=9">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#7a4219">
+<meta name="theme-color" content="#2f4a32">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Steadfast">
@@ -17,9 +17,9 @@
 <script src="config.js"></script>
 <script src="data/library.js?v=6"></script>
 <script src="js/store.js?v=8"></script>
-<script src="js/engine.js?v=7"></script>
+<script src="js/engine.js?v=9"></script>
 <script src="js/api.js?v=7"></script>
-<script src="js/app.js?v=6"></script>
+<script src="js/app.js?v=9"></script>
 </head>
 <body>
 <main>
@@ -47,7 +47,7 @@
 
     <div class="card span">
       <h2>Weight and workout days</h2>
-      <div class="legend"><span style="--c:#7a4219">Weight</span><span style="--c:#a8740a">Workout day</span><span style="--c:#a63a2b" id="leg-target">Target</span></div>
+      <div class="legend"><span style="--c:var(--accent)">Weight</span><span style="--c:var(--yellow)">Workout day</span><span style="--c:var(--red)" id="leg-target">Target</span></div>
       <div class="chart"><canvas id="chart"></canvas></div>
     </div>
 
@@ -150,9 +150,9 @@ async function load() {
     data: {
       labels: allDates.map(fmtDate),
       datasets: [
-        { type: "line", label: "Weight", data: allDates.map(d => wmap[d] ?? null), borderColor: "#7a4219", backgroundColor: "#7a4219", spanGaps: true, tension: .2, pointRadius: 3 },
-        { type: "scatter", label: "Workout", data: allDates.map(d => workoutSet.has(d) ? minW + 1 : null), backgroundColor: "#a8740a", pointStyle: "triangle", pointRadius: 6 },
-        { type: "line", label: "Target", data: allDates.map(() => w.target_weight), borderColor: "#a63a2b", borderDash: [6, 4], pointRadius: 0, borderWidth: 1 },
+        { type: "line", label: "Weight", data: allDates.map(d => wmap[d] ?? null), borderColor: cssVar("--accent"), backgroundColor: cssVar("--accent"), spanGaps: true, tension: .2, pointRadius: 3 },
+        { type: "scatter", label: "Workout", data: allDates.map(d => workoutSet.has(d) ? minW + 1 : null), backgroundColor: cssVar("--yellow"), pointStyle: "triangle", pointRadius: 6 },
+        { type: "line", label: "Target", data: allDates.map(() => w.target_weight), borderColor: cssVar("--red"), borderDash: [6, 4], pointRadius: 0, borderWidth: 1 },
       ]
     },
     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },

@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Meal plan · Steadfast Health</title>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="style.css?v=9">
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#7a4219">
+<meta name="theme-color" content="#2f4a32">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Steadfast">
@@ -17,9 +17,9 @@
 <script src="config.js"></script>
 <script src="data/library.js?v=6"></script>
 <script src="js/store.js?v=8"></script>
-<script src="js/engine.js?v=7"></script>
+<script src="js/engine.js?v=9"></script>
 <script src="js/api.js?v=7"></script>
-<script src="js/app.js?v=6"></script>
+<script src="js/app.js?v=9"></script>
 </head>
 <body>
 <main>
@@ -44,7 +44,7 @@
 
   <div class="card" style="margin-top:14px" id="nutri" style="display:none">
     <h2>Nutrition this week</h2>
-    <div class="legend"><span style="--c:#7a4219">Protein</span><span style="--c:#a8740a">Fat</span><span style="--c:#a63a2b">Net carbs</span><span style="--c:#1c1f22" id="leg-goal" hidden>Protein goal</span></div>
+    <div class="legend"><span style="--c:var(--accent)">Protein</span><span style="--c:var(--yellow)">Fat</span><span style="--c:var(--red)">Net carbs</span><span style="--c:var(--ink)" id="leg-goal" hidden>Protein goal</span></div>
     <div class="chart"><canvas id="nutri-chart"></canvas></div>
     <table class="small" id="nutri-table" style="width:100%; margin-top:8px; border-collapse:collapse"></table>
     <p class="small muted" style="margin:8px 0 0">Per serving as written in the recipe, from standard reference values (raw weight for meat and fish, net carbs). Good to about 10 percent.</p>
@@ -122,11 +122,11 @@ function renderNutrition() {
   const labels = days.map(d => fmtDate(d.date).replace(/,.*$/, ""));
   const pick = k => days.map(d => d.nutrition ? d.nutrition[k] : 0);
   const data = { labels, datasets: [
-    { label: "Protein", data: pick("protein"), backgroundColor: "#7a4219", stack: "g" },
-    { label: "Fat", data: pick("fat"), backgroundColor: "#a8740a", stack: "g" },
-    { label: "Net carbs", data: pick("carbs"), backgroundColor: "#a63a2b", stack: "g" },
+    { label: "Protein", data: pick("protein"), backgroundColor: cssVar("--accent"), stack: "g" },
+    { label: "Fat", data: pick("fat"), backgroundColor: cssVar("--yellow"), stack: "g" },
+    { label: "Net carbs", data: pick("carbs"), backgroundColor: cssVar("--red"), stack: "g" },
   ] };
-  if (proteinGoal) data.datasets.push({ type: "line", label: "Protein goal", data: days.map(() => proteinGoal), borderColor: "#1c1f22", borderDash: [6, 4], borderWidth: 2, pointRadius: 0, stack: "goal", order: -1 });
+  if (proteinGoal) data.datasets.push({ type: "line", label: "Protein goal", data: days.map(() => proteinGoal), borderColor: cssVar("--ink"), borderDash: [6, 4], borderWidth: 2, pointRadius: 0, stack: "goal", order: -1 });
   if (nutriChart) { nutriChart.data = data; nutriChart.update(); }
   else nutriChart = new Chart(el("nutri-chart"), { type: "bar", data, options: { responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { footer: items => `${days[items[0].dataIndex].nutrition?.kcal ?? 0} kcal` } } },

@@ -23,7 +23,7 @@ Static site on GitHub Pages (`wcwilkins2025/health`, Pages from `main` at the ro
 
 - Dates are local `YYYY-MM-DD`; `HT.now` overrides today in tests.
 - Plain JS, no build step. Cache-bust with `?v=` on script and style links when they change.
-- Colors and type: paper, ink, oxblood brown, Barlow Condensed + Source Serif 4 (`style.css`). Light only.
+- Colors: the shared Homestead Ready nature palette (master `C:\Projects\homestead-ready\palette.css`), light (daylight field) and dark (night woods) by `prefers-color-scheme` or `data-theme`; use only its values. Charts and legends read the tokens (`cssVar("--accent")`, `--c:var(--red)`), never hex. Type: Barlow Condensed + Source Serif 4. The My Code sheet keeps its own printable paper look.
 - Today first and loud on every day-based view. Phone first for the log and the shopping list.
 - Training lives on Training and Log; the dashboard Move line points there.
 
