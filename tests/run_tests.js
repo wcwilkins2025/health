@@ -321,9 +321,9 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     const flat = g => Object.fromEntries(g.flatMap(x => x.items).map(i => [i.food_id + '|' + i.unit, i.qty]));
     const f1 = flat(one), f2 = flat(two), fb = flat(both);
     check('two weeks add up item by item', Object.keys(fb).every(k => Math.abs(fb[k] - ((f1[k] || 0) + (f2[k] || 0))) < 0.011) && Object.keys(fb).length >= Math.max(Object.keys(f1).length, Object.keys(f2).length));
-    const food = both[0].items[0].food_id;
+    const food = Object.keys(fb).map(k => k.split('|')[0]).find(id => Object.keys(f1).some(k => k.startsWith(id + '|')) && Object.keys(f2).some(k => k.startsWith(id + '|')));   // an item both weeks use
     let after = await api('PATCH', `/api/shopping/${food}`, { plans: [a.id, b.id], checked: true });
-    check('checking on the combined list checks it in both weeks', after[0].items[0].checked === 1 && E.plan(S, a.id).checks[food] && E.plan(S, b.id).checks[food]);
+    check('checking on the combined list checks it in both weeks', after.flatMap(g => g.items).find(i => i.food_id === food).checked === 1 && E.plan(S, a.id).checks[food] && E.plan(S, b.id).checks[food]);
     await api('PATCH', `/api/plans/${b.id}/shopping/${food}`, { checked: false });
     after = await api('GET', `/api/shopping?plans=${a.id},${b.id}`);
     check('checked only in one week shows unchecked on the combined list', after.flatMap(g => g.items).find(i => i.food_id === food).checked === 0);
