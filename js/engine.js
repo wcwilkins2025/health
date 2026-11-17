@@ -453,18 +453,30 @@
     await S.update('plans', { id: x.p.id }, { days: days });
     return x.p.id;
   };
-  E.shoppingList = function (S, id) {
-    var p = E.plan(S, id);
-    if (!p) return [];
-    var mm = E.mealMap(S), foods = E.foodMap(S), items = {}, checks = p.checks || {};
-    p.days.forEach(function (d) {
-      d.slots.forEach(function (s) {
-        var m = mm[s.meal_id]; if (!m) return;
-        m.ingredients.forEach(function (i) {
-          var f = foods[i.food_id]; if (!f) return;
-          var k = f.id + '|' + i.unit;
-          var it = items[k] || (items[k] = { food_id: f.id, name: f.name, store_section: f.store_section, unit: i.unit, qty: 0, checked: checks[f.id] ? 1 : 0 });
-          it.qty += i.qty;
+  /* the weeks that have at least one meal in their plan, oldest first */
+  E.plannedWeeks = function (S) {
+    return S.db.plans.map(function (p) {
+      var meals = 0;
+      p.days.forEach(function (d) { d.slots.forEach(function (s) { if (s.meal_id) meals++; }); });
+      return { id: p.id, week_start: p.week_start, week_end: E.addDays(p.week_start, 6), meals: meals };
+    }).filter(function (w) { return w.meals > 0; }).sort(function (a, b) { return a.week_start < b.week_start ? -1 : 1; });
+  };
+  /* one plan's list, or several weeks' summed; an item is checked when it is checked in every week chosen */
+  E.shoppingList = function (S, ids) {
+    var plans = (Array.isArray(ids) ? ids : [ids]).map(function (id) { return E.plan(S, id); }).filter(Boolean);
+    if (!plans.length) return [];
+    var mm = E.mealMap(S), foods = E.foodMap(S), items = {};
+    plans.forEach(function (p) {
+      p.days.forEach(function (d) {
+        d.slots.forEach(function (s) {
+          var m = mm[s.meal_id]; if (!m) return;
+          m.ingredients.forEach(function (i) {
+            var f = foods[i.food_id]; if (!f) return;
+            var k = f.id + '|' + i.unit;
+            var it = items[k] || (items[k] = { food_id: f.id, name: f.name, store_section: f.store_section, unit: i.unit, qty: 0,
+              checked: plans.every(function (q) { return q.checks && q.checks[f.id]; }) ? 1 : 0 });
+            it.qty += i.qty;
+          });
         });
       });
     });

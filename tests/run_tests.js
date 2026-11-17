@@ -305,6 +305,31 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     check('a check-in can be deleted', !S.db.checkins.some(x => x.date === '2026-11-14'));
   });
 
+  await section('9. Shopping for one week or several', async () => {
+    const { S, api } = fresh();
+    await E.seedDefaultWorkouts(S);
+    const a = await api('POST', '/api/plans', { week_start: '2026-11-16' });
+    const b = await api('POST', '/api/plans', { week_start: '2026-11-23' });
+    const empty = await api('POST', '/api/plans', { week_start: '2026-11-30' });
+    for (const d of E.getPlan(S, empty.id).days) for (const sl of d.slots) await api('PATCH', `/api/plans/slots/${sl.id}`, { meal_id: null });
+    const weeks = await api('GET', '/api/shopping/weeks');
+    check('only weeks with meals are offered, in order', eq(weeks.map(w => w.week_start), ['2026-11-16', '2026-11-23']) && weeks[0].week_end === '2026-11-22' && weeks[0].meals > 0, weeks);
+    check('a week with no meals is refused', await throws(() => api('GET', `/api/shopping?plans=${empty.id}`), 422));
+    check('no weeks picked is refused', await throws(() => api('GET', '/api/shopping?plans='), 422));
+    const one = await api('GET', `/api/shopping?plans=${a.id}`), two = await api('GET', `/api/shopping?plans=${b.id}`);
+    const both = await api('GET', `/api/shopping?plans=${a.id},${b.id}`);
+    const flat = g => Object.fromEntries(g.flatMap(x => x.items).map(i => [i.food_id + '|' + i.unit, i.qty]));
+    const f1 = flat(one), f2 = flat(two), fb = flat(both);
+    check('two weeks add up item by item', Object.keys(fb).every(k => Math.abs(fb[k] - ((f1[k] || 0) + (f2[k] || 0))) < 0.011) && Object.keys(fb).length >= Math.max(Object.keys(f1).length, Object.keys(f2).length));
+    const food = both[0].items[0].food_id;
+    let after = await api('PATCH', `/api/shopping/${food}`, { plans: [a.id, b.id], checked: true });
+    check('checking on the combined list checks it in both weeks', after[0].items[0].checked === 1 && E.plan(S, a.id).checks[food] && E.plan(S, b.id).checks[food]);
+    await api('PATCH', `/api/plans/${b.id}/shopping/${food}`, { checked: false });
+    after = await api('GET', `/api/shopping?plans=${a.id},${b.id}`);
+    check('checked only in one week shows unchecked on the combined list', after.flatMap(g => g.items).find(i => i.food_id === food).checked === 0);
+    check('the one-week route still works', (await api('GET', `/api/plans/${a.id}/shopping`)).length > 0);
+  });
+
   console.log(failures ? `\n${failures} FAILED` : '\nAll checks pass.');
   process.exit(failures ? 1 : 0);
 })();

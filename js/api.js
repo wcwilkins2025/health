@@ -198,6 +198,20 @@
   on('PATCH', '/api/plans/days/{id}', async function (S, p, b) { return E.getPlan(S, await E.setDayAway(S, p.id, !!b.away)); });
   on('GET', '/api/plans/{id}/shopping', function (S, p) { return E.shoppingList(S, p.id); });
   on('PATCH', '/api/plans/{id}/shopping/{food}', async function (S, p, b) { await E.setCheck(S, p.id, p.food, !!b.checked); return E.shoppingList(S, p.id); });
+  on('GET', '/api/shopping/weeks', function (S) { return E.plannedWeeks(S); });
+  function planIds(S, raw) {
+    var ids = (Array.isArray(raw) ? raw : String(raw || '').split(',')).map(String).filter(Boolean);
+    var known = new Set(E.plannedWeeks(S).map(function (w) { return String(w.id); }));
+    ids = ids.filter(function (id) { return known.has(id); });
+    if (!ids.length) throw E.bad('Pick at least one week that has a meal plan', 422);
+    return ids;
+  }
+  on('GET', '/api/shopping', function (S, p, b, q) { return E.shoppingList(S, planIds(S, q.get('plans'))); });
+  on('PATCH', '/api/shopping/{food}', async function (S, p, b) {
+    var ids = planIds(S, b.plans);
+    for (var i = 0; i < ids.length; i++) await E.setCheck(S, ids[i], p.food, !!b.checked);
+    return E.shoppingList(S, ids);
+  });
   on('GET', '/api/plans/{id}/batch', function (S, p) { return { batch: E.batchCook(S, p.id), cooler: E.coolerBag(S, p.id) }; });
 
   // ---------- forecast and the training week ----------
