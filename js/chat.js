@@ -83,8 +83,9 @@
         el("setup").style.display = "";
         el("setup").innerHTML = `<h2>AI is not set up yet</h2><p class="small" style="margin:0">${!HT.aiCall
           ? "AI works once the app is connected to its Supabase project (the local preview has no AI)."
-          : st.is_owner || st.error ? `Set it up on the <a href="ai-setup.html">AI setup page</a>: paste one key and it's done.${st.error ? " (" + esc(st.error) + ")" : ""}`
-          : "The app's owner sets it up once for everyone. Ask them, or if you run this app, open the <a href=\"ai-setup.html\">AI setup page</a>."}</p>`;
+          : st.mode === "own" ? `The coach, the My Code builder and the kitchen helper run on your own AI key. Add one on the <a href="ai-setup.html">AI setup page</a>: paste one key and it's done. Groq and Gemini can be tried for free.`
+          : st.mode === "invited" ? "You use the app's shared AI, and it is not switched on yet. The person who invited you will do that."
+          : `Set it up on the <a href="ai-setup.html">AI setup page</a>: paste one key and it's done.${st.error ? " (" + esc(st.error) + ")" : ""}`}</p>`;
       }
       await HT.chatLoad();
     })().catch(e => flash("msg", e.message, "err"));

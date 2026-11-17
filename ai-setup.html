@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI setup · Steadfast Health</title>
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=11">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f4a32">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
@@ -26,7 +26,7 @@
   <div id="owner" style="display:none">
     <div class="card" style="margin-bottom:14px">
       <p style="margin:0" id="current"></p>
-      <p class="small muted" style="margin:8px 0 0">One AI serves the coach, the My Code builder and the kitchen helper for everyone using the app, and its cost lands on the key you add here. The key is kept in the app's Supabase project, out of reach of every browser, and is never shown again.</p>
+      <p class="small muted" style="margin:8px 0 0" id="about-key"></p>
     </div>
 
     <div class="card" style="margin-bottom:14px">
@@ -50,9 +50,9 @@
       <h2>Keeping the cost down</h2>
       <div class="row" style="align-items:flex-end">
         <label>Quality and cost <select id="tier"></select></label>
-        <label>Messages per person a day <input type="number" id="limit" min="0" max="1000" step="1" style="width:100px"></label>
+        <label id="limit-l">Messages per person a day <input type="number" id="limit" min="0" max="1000" step="1" style="width:100px"></label>
       </div>
-      <p class="small muted" style="margin:8px 0 0">Lowest cost picks the provider's cheapest capable model (for Claude, Haiku). Replies are kept short and only the last few messages go with each one. You are never limited yourself; 0 means no limit for anyone.</p>
+      <p class="small muted" style="margin:8px 0 0" id="cost-note"></p>
       <p class="small" id="usage" style="margin:8px 0 0"></p>
     </div>
 
@@ -65,7 +65,8 @@
 </main>
 <script>
 let P = null, sel = null;
-const call = body => HT.aiCall(body);
+let PFX = "admin_";   // admin_: the owner's shared AI; my_: a person's own key
+const call = body => HT.aiCall(Object.assign({}, body, { action: PFX + String(body.action).replace(/^admin_/, "") }));
 function prov(id) { return P.providers.find(p => p.id === id); }
 function render() {
   el("current").innerHTML = P.configured ? `In use now: <strong>${esc(P.provider_name)}</strong>, model <strong>${esc(P.model)}</strong>.` : `<strong>Not set up yet.</strong> The coach, the builder and the kitchen helper are off until a provider has a key.`;
@@ -126,11 +127,29 @@ el("tier").addEventListener("change", () => costs({ tier: el("tier").value }));
 el("limit").addEventListener("change", () => costs({ daily_limit: Math.max(0, Math.round(+el("limit").value || 0)) }));
 (async () => {
   await HT.ready;
+  if (HT.aiCall) {
+    let st = null;
+    try { st = await HT.aiCall({ action: "status" }); } catch (e) {}
+    if (st && st.mode === "invited") {
+      el("note").style.display = "";
+      el("note").innerHTML = `<p style='margin:0'>You were invited, so you use the app's shared AI${st.configured ? ` (${esc(st.provider_name)})` : ""}. There is nothing to set up here.${st.configured ? "" : " It is not switched on yet; the person who invited you will do that."}</p>`;
+      return;
+    }
+    if (st && st.mode === "own") {
+      PFX = "my_";
+      el("about-key").textContent = "Steadfast Health is free; the AI behind the coach, the My Code builder and the kitchen helper is yours. Bring a key from one provider below and pay them directly, or start free with Groq or Gemini. Your key is kept in the app's database, out of reach of every browser (yours included), never shown again, and used only for you.";
+      el("cost-note").textContent = "Lowest cost picks the provider's cheapest capable model (for Claude, Haiku). Replies are kept short and only the last few messages go with each one.";
+      el("limit-l").style.display = "none";
+    } else {
+      el("about-key").textContent = "This AI serves you and the people you invite, and its cost lands on the key you add here. People who sign up on their own bring their own key and never use yours. The key is kept in the app's Supabase project, out of reach of every browser, and is never shown again.";
+      el("cost-note").textContent = "Lowest cost picks the provider's cheapest capable model (for Claude, Haiku). Replies are kept short and only the last few messages go with each one. The daily limit applies to the people you invite; you are never limited; 0 means no limit.";
+    }
+  }
   if (!HT.aiCall) { el("note").style.display = ""; el("note").innerHTML = "<p style='margin:0'>AI setup works once the app is connected to its Supabase project and the <code>ai</code> function is deployed (docs/SETUP.md). The local preview has no AI.</p>"; return; }
   try { P = await call({ action: "admin_get" }); }
   catch (e) {
     el("note").style.display = "";
-    el("note").innerHTML = e.status === 403 ? "<p style='margin:0'>The app's owner sets up the AI once for everyone. You don't need to do anything here.</p>" : `<p style='margin:0'>${esc(e.message)}</p>`;
+    el("note").innerHTML = `<p style='margin:0'>${esc(e.message)}</p>`;
     return;
   }
   sel = P.provider; el("owner").style.display = ""; render();

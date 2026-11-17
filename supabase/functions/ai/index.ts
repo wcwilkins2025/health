@@ -1,7 +1,11 @@
 // Steadfast AI: the one place an AI key is used. The browser sends a conversation and its context; this function
-// checks who is asking, enforces the owner's daily limit, calls the chosen provider (core.js) and records usage.
-// Keys live in the ai_config table, which no browser can read (row-level security with no policies); only this
-// function, with the service role, reads and writes it. Deploy: supabase functions deploy ai  (see docs/SETUP.md).
+// checks who is asking, picks whose key to use, enforces the daily limit, calls the provider (core.js) and records use.
+//   - The owner (a row in app_owners, set in the SQL editor) and the people the owner invited from Supabase use the
+//     owner's key; invited people under the owner's daily limit.
+//   - Everyone who signed up on their own uses their own key, set on their AI setup page; never the owner's.
+// Keys live in ai_config (the owner's) and user_ai_keys (each person's own). No browser can read either table
+// (row-level security with no policies); only this function, with the service role, reads and writes them.
+// Deploy: supabase functions deploy ai  (see docs/SETUP.md).
 import Anthropic from "npm:@anthropic-ai/sdk@1.9.0";
 import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 import * as core from "./core.js";
@@ -64,27 +68,32 @@ const deps = {
   },
 };
 
-// ---------- the owner's settings ----------
-async function loadConfig() {
+// ---------- settings: the owner's, and each person's own ----------
+async function loadOwnerConfig() {
   const { data } = await db.from("ai_config").select("data").eq("id", 1).maybeSingle();
   return core.defaults(data?.data);
 }
-async function saveConfig(cfg: unknown) {
+async function saveOwnerConfig(cfg: unknown) {
   const { error } = await db.from("ai_config").upsert({ id: 1, data: cfg, updated_at: new Date().toISOString() });
   if (error) throw new core.AIError("Could not save the AI settings.", 500);
 }
-async function isOwner(userId: string, claim: boolean) {
-  const { data } = await db.from("app_owners").select("user_id");
-  if (data?.some((r: any) => r.user_id === userId)) return true;
-  if (claim && !data?.length) {   // the first person to open AI setup becomes the owner (sign-up is by invitation only)
-    await db.from("app_owners").insert({ user_id: userId });
-    return true;
-  }
-  return false;
+async function loadUserConfig(userId: string) {
+  const { data } = await db.from("user_ai_keys").select("data").eq("user_id", userId).maybeSingle();
+  return core.defaults(Object.assign({ daily_limit: 0 }, data?.data));
 }
-async function usageMonth() {
+async function saveUserConfig(userId: string, cfg: unknown) {
+  const { error } = await db.from("user_ai_keys").upsert({ user_id: userId, data: cfg, updated_at: new Date().toISOString() });
+  if (error) throw new core.AIError("Could not save your AI settings.", 500);
+}
+async function isOwner(userId: string) {
+  const { data } = await db.from("app_owners").select("user_id").eq("user_id", userId).maybeSingle();
+  return !!data;
+}
+async function usageMonth(userId: string | null) {
   const start = new Date(); start.setUTCDate(1); start.setUTCHours(0, 0, 0, 0);
-  const { data } = await db.from("ai_usage").select("provider, model, tokens_in, tokens_out").gte("at", start.toISOString());
+  let q = db.from("ai_usage").select("provider, model, tokens_in, tokens_out").gte("at", start.toISOString());
+  q = userId ? q.eq("user_id", userId) : q.eq("billed_to", "owner");
+  const { data } = await q;
   const u = { month: start.toISOString().slice(0, 7), requests: 0, tokens_in: 0, tokens_out: 0, dollars: 0, priced: true };
   for (const r of data ?? []) {
     u.requests++; u.tokens_in += r.tokens_in; u.tokens_out += r.tokens_out;
@@ -94,8 +103,9 @@ async function usageMonth() {
   u.dollars = Math.round(u.dollars * 100) / 100;
   return u;
 }
-async function record(userId: string, kind: string, provider: string, model: string, usage: any) {
-  await db.from("ai_usage").insert({ user_id: userId, kind, provider, model, tokens_in: usage?.tokens_in ?? usage?.input_tokens ?? 0, tokens_out: usage?.tokens_out ?? usage?.output_tokens ?? 0 });
+async function record(userId: string, kind: string, provider: string, model: string, usage: any, billedTo: string) {
+  await db.from("ai_usage").insert({ user_id: userId, kind, provider, model, billed_to: billedTo,
+    tokens_in: usage?.tokens_in ?? usage?.input_tokens ?? 0, tokens_out: usage?.tokens_out ?? usage?.output_tokens ?? 0 });
 }
 
 async function quickSetup(cfg: any, key: string) {
@@ -110,6 +120,53 @@ async function quickSetup(cfg: any, key: string) {
   return cfg;
 }
 
+/** The setup actions, the same for the owner's settings (admin_*) and a person's own (my_*). */
+async function setupAction(op: string, cfg: any, save: (c: any) => Promise<void>, body: any, userId: string, billedTo: string, usage: () => Promise<any>, ownerSettings: boolean) {
+  if (op === "quick") {
+    const key = String(body.key ?? "").trim();
+    if (key.length < 8 || /\s/.test(key)) throw new core.AIError("Paste the whole key.", 422);
+    cfg = await quickSetup(cfg, key);
+    await save(cfg);
+    const test = await core.testConnection(cfg, deps);
+    await record(userId, "setup", cfg.provider, core.modelFor(cfg, cfg.provider), test.usage, billedTo);
+    return { ...core.publicConfig(cfg, await usage()), test: { ok: test.ok, reply: test.reply } };
+  }
+  if (op === "update") {
+    const p = String(body.provider ?? "");
+    if (!core.PROVIDERS[p]) throw new core.AIError("Unknown provider.", 422);
+    cfg.provider = p;
+    if (typeof body.model === "string") { if (body.model.trim()) cfg.models[p] = body.model.trim().slice(0, 120); else delete cfg.models[p]; }
+    if (body.clear_key) delete cfg.keys[p];
+    else if (typeof body.key === "string" && body.key.trim()) {
+      if (body.key.trim().length < 8 || /\s/.test(body.key.trim())) throw new core.AIError("That does not look like an API key.", 422);
+      cfg.keys[p] = body.key.trim();
+    }
+    await save(cfg);
+  } else if (op === "costs") {
+    if (body.tier !== undefined) {
+      if (!core.TIERS[body.tier]) throw new core.AIError("Unknown cost setting.", 422);
+      cfg.tier = body.tier; if (cfg.provider === "anthropic") delete cfg.models.anthropic;
+    }
+    if (body.daily_limit !== undefined && ownerSettings) {
+      const n = Math.round(Number(body.daily_limit));
+      if (!(n >= 0 && n <= 1000)) throw new core.AIError("The daily limit has to be between 0 and 1000.", 422);
+      cfg.daily_limit = n;
+    }
+    await save(cfg);
+  } else if (op === "models") {
+    const p = String(body.provider ?? "");
+    if (!core.PROVIDERS[p]) throw new core.AIError("Unknown provider.", 422);
+    return { models: await core.listModels(cfg, p, deps) };
+  } else if (op === "test") {
+    const test = await core.testConnection(cfg, deps);
+    await record(userId, "setup", cfg.provider, core.modelFor(cfg, cfg.provider), test.usage, billedTo);
+    return { ok: test.ok, reply: test.reply };
+  } else if (op !== "get") {
+    throw new core.AIError("Unknown request.", 400);
+  }
+  return core.publicConfig(cfg, await usage());
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   try {
@@ -118,64 +175,29 @@ Deno.serve(async (req) => {
     if (!user) return reply({ error: "Sign in first." }, 401);
     const body = await req.json().catch(() => ({}));
     const action = String(body.action ?? "");
-    let cfg = await loadConfig();
+    const owner = await isOwner(user.id);
+    const invited = !!(user as any).invited_at;
+    const pick = async () => core.chooseConfig({ owner, invited, ownerCfg: await loadOwnerConfig(), userCfg: (owner || invited) ? null : (await loadUserConfig(user.id)) });
 
     if (action === "status") {
-      const owner = await isOwner(user.id, false);
-      return reply({ configured: core.configured(cfg), provider_name: core.PROVIDERS[cfg.provider]?.name ?? "", model: core.modelFor(cfg, cfg.provider), is_owner: owner });
+      const { cfg, mode } = await pick();
+      return reply({ configured: core.configured(cfg), provider_name: core.PROVIDERS[cfg.provider]?.name ?? "", model: core.modelFor(cfg, cfg.provider), is_owner: owner, mode });
     }
 
     if (action.startsWith("admin_")) {
-      if (!(await isOwner(user.id, true))) return reply({ error: "Only the app's owner sets up the AI." }, 403);
-      if (action === "admin_quick") {
-        const key = String(body.key ?? "").trim();
-        if (key.length < 8 || /\s/.test(key)) throw new core.AIError("Paste the whole key.", 422);
-        cfg = await quickSetup(cfg, key);
-        await saveConfig(cfg);
-        const test = await core.testConnection(cfg, deps);
-        await record(user.id, "setup", cfg.provider, core.modelFor(cfg, cfg.provider), test.usage);
-        return reply({ ...core.publicConfig(cfg, await usageMonth()), test: { ok: test.ok, reply: test.reply } });
-      }
-      if (action === "admin_update") {
-        const p = String(body.provider ?? "");
-        if (!core.PROVIDERS[p]) throw new core.AIError("Unknown provider.", 422);
-        cfg.provider = p;
-        if (typeof body.model === "string") { if (body.model.trim()) cfg.models[p] = body.model.trim().slice(0, 120); else delete cfg.models[p]; }
-        if (body.clear_key) delete cfg.keys[p];
-        else if (typeof body.key === "string" && body.key.trim()) {
-          if (body.key.trim().length < 8 || /\s/.test(body.key.trim())) throw new core.AIError("That does not look like an API key.", 422);
-          cfg.keys[p] = body.key.trim();
-        }
-        await saveConfig(cfg);
-      } else if (action === "admin_costs") {
-        if (body.tier !== undefined) {
-          if (!core.TIERS[body.tier]) throw new core.AIError("Unknown cost setting.", 422);
-          cfg.tier = body.tier; if (cfg.provider === "anthropic") delete cfg.models.anthropic;
-        }
-        if (body.daily_limit !== undefined) {
-          const n = Math.round(Number(body.daily_limit));
-          if (!(n >= 0 && n <= 1000)) throw new core.AIError("The daily limit has to be between 0 and 1000.", 422);
-          cfg.daily_limit = n;
-        }
-        await saveConfig(cfg);
-      } else if (action === "admin_models") {
-        const p = String(body.provider ?? "");
-        if (!core.PROVIDERS[p]) throw new core.AIError("Unknown provider.", 422);
-        return reply({ models: await core.listModels(cfg, p, deps) });
-      } else if (action === "admin_test") {
-        const test = await core.testConnection(cfg, deps);
-        await record(user.id, "setup", cfg.provider, core.modelFor(cfg, cfg.provider), test.usage);
-        return reply({ ok: test.ok, reply: test.reply });
-      } else if (action !== "admin_get") {
-        throw new core.AIError("Unknown request.", 400);
-      }
-      return reply(core.publicConfig(cfg, await usageMonth()));
+      if (!owner) return reply({ error: "Only the app's owner changes the shared AI." }, 403);
+      return reply(await setupAction(action.slice(6), await loadOwnerConfig(), saveOwnerConfig, body, user.id, "owner", () => usageMonth(null), true));
+    }
+    if (action.startsWith("my_")) {
+      if (owner || invited) return reply({ error: "You use the app's shared AI; there is nothing to set up here." }, 409);
+      return reply(await setupAction(action.slice(3), await loadUserConfig(user.id), c => saveUserConfig(user.id, c), body, user.id, "self", () => usageMonth(user.id), false));
     }
 
     if (action === "chat") {
       const kind = String(body.kind ?? "");
-      const owner = await isOwner(user.id, false);
-      if (cfg.daily_limit && !owner) {
+      const { cfg, mode, limited } = await pick();
+      if (mode === "own" && !core.configured(cfg)) throw new core.AIError("Add your own AI key on the AI setup page first. Groq and Gemini can be tried for free.", 503);
+      if (limited && cfg.daily_limit) {
         const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
         const { count } = await db.from("ai_usage").select("id", { count: "exact", head: true }).eq("user_id", user.id).neq("kind", "setup").gte("at", since);
         if ((count ?? 0) >= cfg.daily_limit) throw new core.AIError(`That's the limit of ${cfg.daily_limit} messages a day. It eases as the day goes by.`, 429);
@@ -183,7 +205,7 @@ Deno.serve(async (req) => {
       const ctx = { today: String(body.today ?? "").slice(0, 10) || new Date().toISOString().slice(0, 10),
         foodIds: new Set((body.food_ids ?? []).map(String)), offIds: new Set((body.off_ids ?? []).map(String)) };
       const out = await core.runTurn(cfg, kind, body.history, body.context ?? {}, ctx, deps);
-      await record(user.id, kind, out.provider, out.model, out.usage);
+      await record(user.id, kind, out.provider, out.model, out.usage, mode === "own" ? "self" : "owner");
       return reply({ replies: out.replies, refused: out.refused, cards: out.cards });
     }
     return reply({ error: "Unknown request." }, 400);

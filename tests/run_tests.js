@@ -398,6 +398,14 @@ async function section(name, fn) { current = name; console.log(name); try { awai
         : { choices: [{ finish_reason: 'stop', message: { content: 'Two recipes below.' } }] }; } });
     check('an OpenAI-style turn (Groq): one recipe passes, off-diet and unknown foods are sent back', posts[0].url === 'https://api.groq.com/openai/v1/chat/completions' && posts[0].key === 'gsk_k' &&
       r2.cards.length === 1 && r2.cards[0].input.name === 'Bacon and eggs' && posts[1].body.messages.filter(m => m.role === 'tool').map(m => m.content.startsWith('Error')).join() === 'false,true,true');
+    const ownerCfg = { provider: 'groq', keys: { groq: 'gsk_owner_key' }, models: { groq: 'm' }, daily_limit: 25 };
+    const mine = { provider: 'gemini', keys: { gemini: 'AIza-mine' }, models: { gemini: 'x-flash' } };
+    const o = core.chooseConfig({ owner: true, invited: false, ownerCfg, userCfg: mine }), inv = core.chooseConfig({ owner: false, invited: true, ownerCfg, userCfg: mine });
+    const own = core.chooseConfig({ owner: false, invited: false, ownerCfg, userCfg: mine }), none = core.chooseConfig({ owner: false, invited: false, ownerCfg, userCfg: null });
+    check("whose key: the owner and invited people use the owner's (invited under the limit); self-signed-up people their own, never the owner's",
+      o.mode === 'owner' && !o.limited && o.cfg.keys.groq === 'gsk_owner_key' && inv.mode === 'invited' && inv.limited && inv.cfg.keys.groq === 'gsk_owner_key' &&
+      own.mode === 'own' && !own.limited && own.cfg.provider === 'gemini' && !own.cfg.keys.groq && own.cfg.daily_limit === 0 &&
+      none.mode === 'own' && !core.configured(none.cfg) && !JSON.stringify(none.cfg).includes('gsk_owner_key'));
     let threw = false; try { await core.runTurn(core.defaults({}), 'coach', [{ role: 'user', content: 'x' }], {}, {}, {}); } catch (e) { threw = e.status === 503; }
     check('not set up: a clear 503', threw);
   });

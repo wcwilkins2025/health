@@ -88,6 +88,14 @@ export function cost(model, tokensIn, tokensOut) {
   return p ? tokensIn / 1e6 * p[0] + tokensOut / 1e6 * p[1] : null;
 }
 
+/** Whose AI a person uses: the owner and the people the owner invited use the owner's key (invited people under the
+    daily limit); everyone who signed up on their own uses their own key, with no limit and no cost to the owner. */
+export function chooseConfig({ owner, invited, ownerCfg, userCfg }) {
+  if (owner) return { cfg: defaults(ownerCfg), mode: 'owner', limited: false };
+  if (invited) return { cfg: defaults(ownerCfg), mode: 'invited', limited: true };
+  return { cfg: defaults(Object.assign({ daily_limit: 0 }, userCfg)), mode: 'own', limited: false };
+}
+
 // ---------- the three conversations ----------
 const SHARED_SAFETY = 'Never advise starting, stopping or changing a medicine; blood pressure and blood sugar medicines go through their doctor, and weight loss can change what they need. A reading over 180/120, chest pain or shortness of breath means call a doctor or 911 now. If they mention wanting to hurt themselves or feeling hopeless, stop, say you are glad they told you, and give the 988 Suicide and Crisis Lifeline (call or text 988 in the US). You are an automated helper, not a person; say so if asked.';
 

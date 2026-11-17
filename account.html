@@ -4,7 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Account · Steadfast Health</title>
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=11">
+<meta name="description" content="Meal plans, weigh-ins, blood pressure and workouts to reach your goal weight. Free, no ads.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Steadfast Health">
+<meta property="og:title" content="Steadfast Health">
+<meta property="og:description" content="Meal plans, weigh-ins, blood pressure and workouts to reach your goal weight. Free, no ads.">
+<meta property="og:url" content="https://steadfasthealth.org/">
+<meta property="og:image" content="https://steadfasthealth.org/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Steadfast Health">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Steadfast Health">
+<meta name="twitter:description" content="Meal plans, weigh-ins, blood pressure and workouts to reach your goal weight. Free, no ads.">
+<meta name="twitter:image" content="https://steadfasthealth.org/og-image.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f4a32">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -27,8 +41,29 @@
     <h1>Steadfast Health</h1>
     <div id="msg" class="msg" style="display:none"></div>
 
+    <section id="front" style="display:none">
+      <p class="front-lead">Meal plans, weigh-ins, blood pressure and workouts to reach your goal weight. Free, no ads.</p>
+      <ul class="front-list">
+        <li><strong>A week of meals for your diet</strong>: low-carb, keto, carnivore, whole-food or Mediterranean, with the shopping list built for you.</li>
+        <li><strong>Weigh-ins and a forecast</strong> that shows the date you reach your goal at the pace you're keeping.</li>
+        <li><strong>Blood pressure</strong> with 7- and 30-day averages.</li>
+        <li><strong>A workout log</strong> with a rest timer and an exercise library, plus walks, rides, classes and sports.</li>
+        <li><strong>A coach, a kitchen helper and a My Code builder</strong> that work from your own numbers, using an AI key of your own (Groq and Gemini can be tried for free).</li>
+      </ul>
+      <div class="front-cta"><button type="button" id="go-signup">Create a free account</button><button type="button" class="ghost" id="go-signin">Sign in</button></div>
+      <p class="small muted" style="margin:12px 0 0">Your numbers are yours: each account sees only its own data, and you can download or delete it any time. <a href="privacy.html">What is kept</a>. A personal tool, not medical advice; blood pressure and blood sugar medicine changes go through your doctor.</p>
+    </section>
+
+    <form id="signup" style="display:none">
+      <p style="margin:0">Create your free account.</p>
+      <label>Email <input type="email" id="su-email" autocomplete="username" required></label>
+      <label>Password <input type="password" id="su-password" autocomplete="new-password" minlength="8" required></label>
+      <button type="submit">Create account</button>
+      <div class="links"><button type="button" id="su-back">I already have an account</button></div>
+      <p class="small muted" style="margin:10px 0 0">We'll email you a link to confirm the address. <a href="privacy.html">What is kept</a>.</p>
+    </form>
+
     <form id="signin" style="display:none">
-      <p style="margin:0">Meal plans, a shopping list, weigh-ins, blood pressure and a workout log, in one place on your phone.</p>
       <label>Email <input type="email" id="email" autocomplete="username" required></label>
       <label>Password <input type="password" id="password" autocomplete="current-password"></label>
       <button type="submit">Sign in</button>
@@ -36,7 +71,7 @@
         <button type="button" id="magic">Email me a sign-in link instead</button>
         <button type="button" id="forgot">Forgot password</button>
       </div>
-      <p class="small muted" style="margin:10px 0 0">Accounts are by invitation. Ask the person who runs this for one. <a href="privacy.html">What is kept</a>.</p>
+      <p class="small muted" style="margin:10px 0 0">New here? <a href="#" id="to-signup">Create a free account</a>. <a href="privacy.html">What is kept</a>.</p>
     </form>
 
     <form id="setpw" style="display:none">
@@ -46,7 +81,7 @@
     </form>
 
     <div id="signed" style="display:none">
-      <p style="margin:0">Signed in as <strong id="who"></strong>. <a href="index.html">Open the app</a>.</p>
+      <p style="margin:0">Signed in as <strong id="who"></strong>. <a href="index.html">Open the app</a> · <a href="ai-setup.html">AI setup</a></p>
       <div class="links" style="margin:10px 0 16px"><button type="button" id="signout">Sign out</button><button type="button" id="changepw">Change password</button></div>
 
       <h2>Bring in old data</h2>
@@ -74,7 +109,10 @@ const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
 const linkType = hash.get("type");
 const next = /^[a-z]+\.html/.test(qs.get("next") || "") ? qs.get("next") : "index.html";
 function msg(text, kind = "err") { const m = el("msg"); m.className = "msg " + kind; m.textContent = text; m.style.display = text ? "block" : "none"; }
-function show(id) { for (const x of ["signin", "setpw", "signed", "unconfigured", "working"]) el(x).style.display = x === id ? "" : "none"; }
+function show(id) {
+  el("card").classList.toggle("wide", id === "signin" && (!qs.get("next") || qs.get("next") === "index.html"));
+  for (const x of ["front", "signup", "signin", "setpw", "signed", "unconfigured", "working"]) el(x).style.display = x === id || (id === "signin" && x === "front" && (!qs.get("next") || qs.get("next") === "index.html")) ? "" : "none";
+}
 const back = location.origin + location.pathname;
 
 (async () => {
@@ -85,7 +123,18 @@ const back = location.origin + location.pathname;
   if (session && (linkType === "invite" || linkType === "recovery" || qs.get("reset"))) show("setpw");
   else if (session && qs.get("next")) location.replace(next);
   else if (session) { el("who").textContent = session.user.email; show("signed"); }
-  else show("signin");
+  else show(qs.get("signup") ? "signup" : "signin");
+  el("go-signup").addEventListener("click", () => { show("signup"); el("su-email").focus(); });
+  el("go-signin").addEventListener("click", () => { el("email").focus(); });
+  el("to-signup").addEventListener("click", ev => { ev.preventDefault(); show("signup"); el("su-email").focus(); });
+  el("su-back").addEventListener("click", () => show("signin"));
+  el("signup").addEventListener("submit", async ev => {
+    ev.preventDefault(); msg("");
+    const { data, error } = await sb.auth.signUp({ email: el("su-email").value.trim(), password: el("su-password").value, options: { emailRedirectTo: back + "?next=welcome.html" } });
+    if (error) { msg(/rate limit/i.test(error.message) ? "Too many sign-ups right now; try again in an hour." : error.message); return; }
+    if (data.session) { location.replace("welcome.html"); return; }
+    msg("Check your email: the link in it confirms your address and opens the app.", "ok");
+  });
 
   el("signin").addEventListener("submit", async ev => {
     ev.preventDefault(); msg("");

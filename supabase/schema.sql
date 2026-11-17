@@ -164,6 +164,7 @@ create table if not exists public.ai_config (
   data       jsonb not null default '{}'::jsonb,   -- provider, models, keys, tier, daily_limit
   updated_at timestamptz not null default now()
 );
+-- The owner: one row, added by hand in the SQL editor (docs/SETUP.md). The owner's key also serves the people they invite.
 create table if not exists public.app_owners (
   user_id uuid primary key references auth.users (id) on delete cascade
 );
@@ -178,10 +179,18 @@ create table if not exists public.ai_usage (
   tokens_out int not null default 0
 );
 create index if not exists ai_usage_user_at on public.ai_usage (user_id, at);
+-- whose key paid: 'owner' (the owner and invited people) or 'self' (people who signed up and use their own key)
+alter table public.ai_usage add column if not exists billed_to text not null default 'owner';
+-- each self-signed-up person's own AI settings and key; like ai_config, only the ai function reads or writes it
+create table if not exists public.user_ai_keys (
+  user_id    uuid primary key references auth.users (id) on delete cascade,
+  data       jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
 do $$
 declare t text;
 begin
-  foreach t in array array['ai_config', 'app_owners', 'ai_usage'] loop
+  foreach t in array array['ai_config', 'app_owners', 'ai_usage', 'user_ai_keys'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from anon, authenticated', t);
   end loop;

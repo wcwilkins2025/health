@@ -2,7 +2,7 @@
 
 Meal plans, a shopping list, weigh-ins, blood pressure, a daily check-in, a workout log, a forecast and a daily blog, for getting to a goal weight on a low-carb, protein-first diet. Works on a phone; add it to the home screen and it opens like an app.
 
-Live at **https://wcwilkins2025.github.io/health/**. Accounts are by invitation.
+Live at **https://steadfasthealth.org**. Free, no ads; anyone can create an account. The coach, the kitchen helper and the My Code builder run on each person's own AI key (Groq and Gemini can be tried for free); people the owner invites use the owner's key.
 
 ## How it is built
 

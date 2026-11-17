@@ -6,10 +6,10 @@ Four steps, about 20 minutes. Use a personal Supabase account.
 
 1. supabase.com → **New project**. Name it `health`, choose a region near you, set a database password (you will not need it again). Wait for it to finish.
 2. **SQL Editor → New query**: paste all of `supabase/schema.sql`, press **Run**. It makes the tables and the rule that each person sees only their own rows. Safe to run again after an update.
-3. **Authentication → Sign In / Providers**: Email on. Under **Sign In / Up**, turn **Allow new users to sign up** off. Only people you invite get in.
+3. **Authentication → Sign In / Providers**: Email on. Under **Sign In / Up**, turn **Allow new users to sign up** on, with **Confirm email** on. Anyone can create an account; people you invite (Authentication → Users → Invite user) use your AI key, everyone else brings their own.
 4. **Authentication → URL Configuration**:
-   - Site URL: `https://wcwilkins2025.github.io/health/account.html`
-   - Redirect URLs: add `https://wcwilkins2025.github.io/health/account.html` and, for checking changes on the PC, `http://localhost:8792/account.html`.
+   - Site URL: `https://steadfasthealth.org/account.html`
+   - Redirect URLs: add `https://steadfasthealth.org/account.html` and, for checking changes on the PC, `http://localhost:8792/account.html`.
    Invite, sign-in-link and password-reset emails all land on `account.html`, which finishes the step and opens the app.
 5. **Project Settings → API Keys**: copy the **Project URL** and the **publishable** key (starts `sb_publishable_`, or the legacy `anon` key). Both are public by design.
 
@@ -20,7 +20,7 @@ Put the two values in `config.js`, commit and push. GitHub Pages republishes in 
 ## 3. Your own account, and your old data
 
 1. **Authentication → Users → Add user → Create new user**: your email and a password, tick **Auto confirm**.
-2. Open `https://wcwilkins2025.github.io/health/`, sign in.
+2. Open `https://steadfasthealth.org/`, sign in.
 3. The welcome page asks for your numbers. To bring over everything from the old app instead, skip it by going straight to **account.html**, pick the old database file under **Bring in old data** (`C:\Projects\weight-target\data\users\1.db`) and press **Import**. Weigh-ins, blood pressure, plans and shopping checks, workouts, settings and blog notes come over. Paths on the old PC and the Bring! login do not.
 4. On the phone: open the address, sign in, then Share → **Add to Home Screen** (iPhone) or the browser menu → **Install app** (Android).
 
@@ -28,7 +28,7 @@ Put the two values in `config.js`, commit and push. GitHub Pages republishes in 
 
 **Authentication → Users → Invite user**, type their email. They get a link, choose a password on `account.html`, fill in the welcome page, and start with their own empty log. Each person's rows are theirs alone.
 
-The free tier's mailer sends a few emails an hour, enough for a small group. For more, add custom SMTP under **Authentication → Emails**.
+The free tier's mailer sends a few emails an hour: enough for invites, not for a public launch. Before inviting the public, add custom SMTP under **Authentication → Emails** (for example a free Resend account with the domain verified in Cloudflare).
 
 ## Gym ACE
 
@@ -45,9 +45,14 @@ The AI runs in a Supabase Edge Function, `supabase/functions/ai`, so the key nev
    npx supabase functions deploy ai --project-ref YOUR-PROJECT-REF
    ```
    The project ref is the part of the Project URL before `.supabase.co`.
-3. Sign in to the app and open **AI setup** (`ai-setup.html`). The first person to open it becomes the app's owner.
+3. Make yourself the owner, once, in the SQL Editor (use your own sign-in email):
+   ```sql
+   insert into public.app_owners (user_id) select id from auth.users where email = 'YOUR-EMAIL' on conflict do nothing;
+   ```
+   The owner's key serves the owner and the people the owner invites. Everyone who signs up on their own sets their own key on the same AI setup page and never touches yours.
+   Then sign in to the app and open **AI setup** (`ai-setup.html`).
 4. Quick setup: press one of the Get a key buttons, create a key there, paste it, press **Set it up**. The app recognizes the provider (Claude, Grok, Groq, Gemini or OpenAI), picks a low-cost model and tests it.
-5. Keeping the cost down: the quality setting starts at Lowest cost, and each person is limited to 25 AI messages a day (the owner is not). Both are on the same page, with this month's use.
+5. Keeping the cost down: the quality setting starts at Lowest cost, and each invited person is limited to 25 AI messages a day on your key (you are not; people with their own key are not). Both are on the same page, with this month's use of your key.
 
 Groq and Gemini can be tried for free. Claude gives the best coaching; on the lowest tier (Claude Haiku) a month of daily use by one person is a few cents to a dollar or two.
 
