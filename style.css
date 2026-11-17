@@ -204,3 +204,4 @@ tr.today-tr td { background: var(--soft-accent); }
 .timer .tbtns { display: flex; gap: 6px; }
 .timer .tbtns button { background: transparent; color: inherit; border-color: rgba(251,250,246,.55); padding: 10px 12px; font-size: 16px; }
 body.has-bar main { padding-bottom: 120px; }
+.bp-step { width: 170px; }

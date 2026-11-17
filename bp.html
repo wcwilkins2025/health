@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Blood pressure · Weight Target</title>
-<link rel="stylesheet" href="style.css?v=3">
+<link rel="stylesheet" href="style.css?v=4">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#7a4219">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -29,9 +29,9 @@
   <div class="card" style="margin-bottom:14px">
     <form class="row" id="form">
       <label>When <input type="datetime-local" id="taken_at" required></label>
-      <label>Systolic <input type="number" id="systolic" min="60" max="260" required autofocus></label>
-      <label>Diastolic <input type="number" id="diastolic" min="30" max="160" required></label>
-      <label>Pulse <input type="number" id="pulse" min="30" max="220"></label>
+      <label>Systolic <div class="stepper bp-step"><button type="button" aria-label="lower" onpointerdown="rep(event, 'systolic', -1)">−</button><input type="number" id="systolic" min="60" max="260" inputmode="numeric" required onfocus="this.select()"><button type="button" aria-label="higher" onpointerdown="rep(event, 'systolic', 1)">+</button></div></label>
+      <label>Diastolic <div class="stepper bp-step"><button type="button" aria-label="lower" onpointerdown="rep(event, 'diastolic', -1)">−</button><input type="number" id="diastolic" min="30" max="160" inputmode="numeric" required onfocus="this.select()"><button type="button" aria-label="higher" onpointerdown="rep(event, 'diastolic', 1)">+</button></div></label>
+      <label>Pulse <div class="stepper bp-step"><button type="button" aria-label="lower" onpointerdown="rep(event, 'pulse', -1)">−</button><input type="number" id="pulse" min="30" max="220" inputmode="numeric" onfocus="this.select()"><button type="button" aria-label="higher" onpointerdown="rep(event, 'pulse', 1)">+</button></div></label>
       <label>Context
         <select id="context">
           <option value="morning">Morning</option>
@@ -100,14 +100,26 @@ async function del(id) {
   if (!confirm("Delete this reading?")) return;
   render(await api(`/api/bp/${id}`, { method: "DELETE" }));
 }
+const BP_DEFAULT = { systolic: 115, diastolic: 75, pulse: 70 };   // inside the normal band; adjust from here
+function bpDefaults() { for (const k in BP_DEFAULT) el(k).value = BP_DEFAULT[k]; }
+function bump(k, d) { const i = el(k); i.value = Math.max(+i.min, Math.min(+i.max, (i.value === "" ? BP_DEFAULT[k] : +i.value) + d)); }
+// tap to move one; hold to keep moving, faster after a moment
+let repT = null;
+function rep(ev, k, d) {
+  ev.preventDefault(); clearTimeout(repT); bump(k, d);
+  let n = 0; const go = () => { bump(k, d); repT = setTimeout(go, n++ < 6 ? 140 : 50); };
+  repT = setTimeout(go, 450);
+}
+["pointerup", "pointercancel", "blur"].forEach(t => window.addEventListener(t, () => clearTimeout(repT)));
 el("taken_at").value = nowLocal();
+bpDefaults();
 el("form").addEventListener("submit", async ev => {
   ev.preventDefault();
   try {
     const body = { taken_at: el("taken_at").value, systolic: +el("systolic").value, diastolic: +el("diastolic").value,
       pulse: el("pulse").value ? +el("pulse").value : null, context: el("context").value, note: el("note").value };
     render(await api("/api/bp", { method: "POST", body }));
-    ["systolic", "diastolic", "pulse", "note"].forEach(i => el(i).value = ""); el("taken_at").value = nowLocal(); flash("msg", "Saved.");
+    el("note").value = ""; bpDefaults(); el("taken_at").value = nowLocal(); flash("msg", "Saved.");
   } catch (e) { flash("msg", e.message, "err"); }
 });
 api("/api/bp").then(render).catch(e => flash("msg", e.message, "err"));
