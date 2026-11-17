@@ -69,8 +69,14 @@ const deps = {
 };
 
 // ---------- settings: the owner's, and each person's own ----------
+// A failed read must never look like "no owner" or "no key": say what failed (the table, not the data).
+function dbError(table: string, error: { code?: string; message?: string }) {
+  console.error(`read ${table} failed:`, error.code, error.message);
+  return new core.AIError(`The AI service could not read its settings (${table}: ${error.code ?? "error"}). The app's owner needs to check the database grants (docs/SETUP.md).`, 500);
+}
 async function loadOwnerConfig() {
-  const { data } = await db.from("ai_config").select("data").eq("id", 1).maybeSingle();
+  const { data, error } = await db.from("ai_config").select("data").eq("id", 1).maybeSingle();
+  if (error) throw dbError("ai_config", error);
   return core.defaults(data?.data);
 }
 async function saveOwnerConfig(cfg: unknown) {
@@ -78,7 +84,8 @@ async function saveOwnerConfig(cfg: unknown) {
   if (error) throw new core.AIError("Could not save the AI settings.", 500);
 }
 async function loadUserConfig(userId: string) {
-  const { data } = await db.from("user_ai_keys").select("data").eq("user_id", userId).maybeSingle();
+  const { data, error } = await db.from("user_ai_keys").select("data").eq("user_id", userId).maybeSingle();
+  if (error) throw dbError("user_ai_keys", error);
   return core.defaults(Object.assign({ daily_limit: 0 }, data?.data));
 }
 async function saveUserConfig(userId: string, cfg: unknown) {
@@ -86,14 +93,16 @@ async function saveUserConfig(userId: string, cfg: unknown) {
   if (error) throw new core.AIError("Could not save your AI settings.", 500);
 }
 async function isOwner(userId: string) {
-  const { data } = await db.from("app_owners").select("user_id").eq("user_id", userId).maybeSingle();
+  const { data, error } = await db.from("app_owners").select("user_id").eq("user_id", userId).maybeSingle();
+  if (error) throw dbError("app_owners", error);
   return !!data;
 }
 async function usageMonth(userId: string | null) {
   const start = new Date(); start.setUTCDate(1); start.setUTCHours(0, 0, 0, 0);
   let q = db.from("ai_usage").select("provider, model, tokens_in, tokens_out").gte("at", start.toISOString());
   q = userId ? q.eq("user_id", userId) : q.eq("billed_to", "owner");
-  const { data } = await q;
+  const { data, error } = await q;
+  if (error) throw dbError("ai_usage", error);
   const u = { month: start.toISOString().slice(0, 7), requests: 0, tokens_in: 0, tokens_out: 0, dollars: 0, priced: true };
   for (const r of data ?? []) {
     u.requests++; u.tokens_in += r.tokens_in; u.tokens_out += r.tokens_out;
@@ -104,8 +113,9 @@ async function usageMonth(userId: string | null) {
   return u;
 }
 async function record(userId: string, kind: string, provider: string, model: string, usage: any, billedTo: string) {
-  await db.from("ai_usage").insert({ user_id: userId, kind, provider, model, billed_to: billedTo,
+  const { error } = await db.from("ai_usage").insert({ user_id: userId, kind, provider, model, billed_to: billedTo,
     tokens_in: usage?.tokens_in ?? usage?.input_tokens ?? 0, tokens_out: usage?.tokens_out ?? usage?.output_tokens ?? 0 });
+  if (error) console.error("ai_usage insert failed:", error.code, error.message);   // never block a reply over the usage log
 }
 
 async function quickSetup(cfg: any, key: string) {

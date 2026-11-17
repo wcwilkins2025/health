@@ -193,8 +193,10 @@ begin
   foreach t in array array['ai_config', 'app_owners', 'ai_usage', 'user_ai_keys'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from anon, authenticated', t);
+    execute format('grant select, insert, update, delete on public.%I to service_role', t);   -- the ai function's own access, stated, not assumed
   end loop;
 end $$;
+grant usage, select on all sequences in schema public to service_role;
 
 -- ---------- each person's rows are their own ----------
 do $$
