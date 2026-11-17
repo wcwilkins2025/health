@@ -52,7 +52,7 @@ HT.ready.catch(() => {});
 function renderNav() {
   const links = NAV.map(([href, label]) => `<a href="${href}" class="${PAGE === href ? "active" : ""}">${label}</a>`).join("");
   document.body.insertAdjacentHTML("afterbegin",
-    `<header class="top"><div class="wrap"><span class="brand">Weight Target</span><nav>${links}</nav><span class="acct" id="acct"></span></div></header>`);
+    `<header class="top"><div class="wrap"><span class="brand">Steadfast Health</span><nav>${links}</nav><span class="acct" id="acct"></span></div></header>`);
   HT.ready.then(S => {
     const who = HT.E.get(S, "name") || S.email;
     el("acct").innerHTML = `<a href="account.html" title="${esc(S.email)}">${esc(who || "Account")}</a>`;

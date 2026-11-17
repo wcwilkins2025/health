@@ -1,6 +1,6 @@
 {
-  "name": "Weight Target",
-  "short_name": "Weight",
+  "name": "Steadfast Health",
+  "short_name": "Steadfast",
   "description": "Meal plans, shopping lists, weigh-ins, blood pressure and the workout log.",
   "start_url": "./index.html",
   "scope": "./",
@@ -8,7 +8,16 @@
   "background_color": "#d9d5cc",
   "theme_color": "#7a4219",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }

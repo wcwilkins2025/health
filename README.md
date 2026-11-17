@@ -1,4 +1,4 @@
-# Weight Target
+# Steadfast Health
 
 Meal plans, a shopping list, weigh-ins, blood pressure, a daily check-in, a workout log, a forecast and a daily blog, for getting to a goal weight on a low-carb, protein-first diet. Works on a phone; add it to the home screen and it opens like an app.
 

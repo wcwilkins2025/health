@@ -1,4 +1,4 @@
-# CLAUDE.md — Weight Target (health)
+# CLAUDE.md — Steadfast Health (health)
 
 Static site on GitHub Pages (`wcwilkins2025/health`, Pages from `main` at the root), data in a Supabase project with row-level security. Public repo: no personal data, names, numbers or paths in any file or commit. The owner's notes and state files stay in the private local folder `C:\Projects\weight-target\docs\state\`.
 

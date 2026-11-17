@@ -1,4 +1,4 @@
-/* Weight Target: where a person's rows live while a page is open.
+/* Steadfast Health: where a person's rows live while a page is open.
    On load every table is read into memory (HT.db); the engine reads those arrays and writes through
    HT.store, which changes the array and the Supabase table together. Tests use the same store with no
    Supabase client (HT.store.memory()), so the engine runs the same in node and in the browser. */

@@ -1,4 +1,4 @@
--- Weight Target: every table holds rows for many people; each person can read and write only their own.
+-- Steadfast Health: every table holds rows for many people; each person can read and write only their own.
 -- Run once in the Supabase SQL editor (SQL Editor > New query > paste > Run). Safe to run again.
 -- The food library and recipes are not here: they ship with the site (data/library.js) and are the same for everyone.
 

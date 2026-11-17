@@ -1,4 +1,4 @@
-/* Weight Target engine: the arithmetic of the app, over the rows in HT.store.
+/* Steadfast Health engine: the arithmetic of the app, over the rows in HT.store.
    Ported from the Python server it replaces (weight and blood pressure statistics, nutrition, the meal
    planner and shopping list, the energy-balance forecast, the training week, the workout log, the daily
    blog). Dates are local YYYY-MM-DD strings; times are epoch milliseconds. */

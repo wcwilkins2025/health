@@ -1,4 +1,4 @@
-/* Weight Target: bringing data in from a SQLite file the person picks.
+/* Steadfast Health: bringing data in from a SQLite file the person picks.
    Two kinds: Gym ACE's database (its sets are mirrored into the log) and the old Weight Target app's
    database (everything moves over once). The file is read in the browser with sql.js; nothing is uploaded
    except the rows that end up in the person's own tables. */

@@ -1,4 +1,4 @@
-/* Weight Target checks: the engine and the API router over an in-memory store, the same code the pages run.
+/* Steadfast Health checks: the engine and the API router over an in-memory store, the same code the pages run.
    Run: npm test   (or node tests/run_tests.js) */
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');

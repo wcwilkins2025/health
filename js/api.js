@@ -1,4 +1,4 @@
-/* Weight Target: the app's API, answered in the browser. The pages call HT.api('/api/...') the way they
+/* Steadfast Health: the app's API, answered in the browser. The pages call HT.api('/api/...') the way they
    called the old Python server; this router does the same work over the person's rows (engine.js) and
    writes through the store, so the pages hardly changed in the move to GitHub Pages and Supabase. */
 (function (root) {

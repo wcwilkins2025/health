@@ -1,4 +1,4 @@
-/* Weight Target food library and recipes: the shared, read-only part every user starts from.
+/* Steadfast Health food library and recipes: the shared, read-only part every user starts from.
    Edit here to add or change a food or a recipe. Ids are permanent (plans refer to them); add new ones, never rename one.
    Nutrition is per 100 g as the recipe measures it (raw meat, cooked bacon, drained fish), net carbs; unit_grams gives
    grams for the units recipes use. Estimates within about 10 percent. */
