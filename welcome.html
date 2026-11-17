@@ -13,10 +13,10 @@
 <link rel="icon" href="icons/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
-<script src="data/library.js?v=3"></script>
+<script src="data/library.js?v=4"></script>
 <script src="js/store.js?v=3"></script>
-<script src="js/engine.js?v=3"></script>
-<script src="js/api.js?v=3"></script>
+<script src="js/engine.js?v=4"></script>
+<script src="js/api.js?v=4"></script>
 <script src="js/app.js?v=3"></script>
 </head>
 <body>
@@ -37,6 +37,8 @@
         <label>Height <span style="display:flex;gap:4px"><input type="number" id="ft" min="3" max="8" placeholder="ft" required style="width:50%"><input type="number" id="inch" min="0" max="11" placeholder="in" required style="width:50%"></span></label>
       </div>
       <label>Target date <span class="muted small">(optional; the forecast sizes the week to it)</span> <input type="date" id="target_date"></label>
+      <label>Diet <select id="diet"></select></label>
+      <p class="small muted" id="diet-about" style="margin:0"></p>
       <button type="submit">Start</button>
     </form>
     <p class="small muted" style="margin:12px 0 0">The forecast uses sex, age and height for resting calories. Nothing here is medical advice; blood pressure or blood sugar medicine changes go through your doctor.</p>
@@ -47,6 +49,10 @@
   const me = await api("/api/me");
   if (me.setup_done) { location.replace("index.html"); return; }
   el("name").value = me.name || "";
+  const diets = (await api("/api/diets")).diets;
+  el("diet").innerHTML = diets.map(x => `<option value="${x.id}" ${x.current ? "selected" : ""}>${esc(x.name)}</option>`).join("");
+  const about = () => { el("diet-about").textContent = diets.find(x => x.id === el("diet").value).about; };
+  el("diet").addEventListener("change", about); about();
   el("f").addEventListener("submit", async ev => {
     ev.preventDefault();
     const weight = Number(el("weight").value), target = Number(el("target").value);
@@ -56,7 +62,7 @@
       await api("/api/me", { method: "PATCH", body: { name: el("name").value.trim() } });
       await api("/api/settings", { method: "PATCH", body: {
         start_weight: weight, target_weight: target, start_date: todayStr(), sex: el("sex").value, age: el("age").value,
-        height_in: String(height_in), target_date: el("target_date").value || "", setup_done: "1" } });
+        height_in: String(height_in), target_date: el("target_date").value || "", diet: el("diet").value, setup_done: "1" } });
       await api("/api/weight", { method: "POST", body: { date: todayStr(), weight } });
       location.replace("index.html");
     } catch (e) { flash("msg", e.message, "err"); }

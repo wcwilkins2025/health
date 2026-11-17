@@ -158,6 +158,12 @@
     var out = E.foodMap(S)[p.id];
     return Object.assign({}, out, { unlocked: out.unlocked ? 1 : 0 });
   });
+  on('GET', '/api/diets', function (S) {
+    var foods = E.foodMap(S), macros = E.mealMacros(S), meals = E.meals(S), cur = E.diet(S);
+    return { diet: cur, diets: E.DIETS.map(function (d) {
+      return Object.assign({}, d, { current: d.id === cur, fits: d.id === cur ? meals.filter(function (m) { return E.mealFits(S, m, foods, macros); }).length : null });
+    }) };
+  });
   on('GET', '/api/meals', function (S, p, b, q) {
     var type = q.get('meal_type'), foods = E.foodMap(S), macros = E.mealMacros(S);
     return E.meals(S).filter(function (m) { return !type || m.meal_type === type; })
@@ -165,7 +171,7 @@
       .map(function (m) {
         var ing = m.ingredients.map(function (i) { var f = foods[i.food_id] || { name: i.food_id, light: 'red', unlocked: false }; return { meal_id: m.id, food_id: i.food_id, name: f.name, light: f.light, unlocked: f.unlocked ? 1 : 0, qty: i.qty, unit: i.unit }; });
         return { id: m.id, name: m.name, meal_type: m.meal_type, portable: m.portable ? 1 : 0, batch: m.batch ? 1 : 0, instructions: m.instructions, enabled: m.enabled ? 1 : 0,
-          nutrition: macros[m.id] || null, ingredients: ing, allowed: ing.every(function (i) { return i.unlocked && i.light !== 'red'; }) };
+          nutrition: macros[m.id] || null, ingredients: ing, allowed: E.mealFits(S, m, foods, macros) };
       });
   });
   on('PATCH', '/api/meals/{id}', async function (S, p, b) {

@@ -15,15 +15,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
-<script src="data/library.js?v=3"></script>
+<script src="data/library.js?v=4"></script>
 <script src="js/store.js?v=3"></script>
-<script src="js/engine.js?v=3"></script>
-<script src="js/api.js?v=3"></script>
+<script src="js/engine.js?v=4"></script>
+<script src="js/api.js?v=4"></script>
 <script src="js/app.js?v=3"></script>
 </head>
 <body>
 <main>
   <h1>Meal plan</h1>
+  <p class="small muted" id="diet-line" style="margin:-10px 0 12px"></p>
   <div id="msg" class="msg" style="display:none"></div>
 
   <div class="card" style="margin-bottom:14px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
@@ -113,6 +114,7 @@ function macLine(n, long) {
               : `${n.kcal}${star} kcal · ${n.protein}P · ${n.fat}F · ${n.carbs}C`;
 }
 let nutriChart = null, proteinGoal = null;
+api("/api/diets").then(d => { const c = d.diets.find(x => x.current); el("diet-line").innerHTML = `Planning for: <strong>${esc(c.name)}</strong>, ${c.fits} recipes. <a href="foods.html">Change the diet</a>`; }).catch(() => {});
 api("/api/goals").then(g => { proteinGoal = g.protein_g; el("leg-goal").hidden = !proteinGoal; if (plan) renderNutrition(); }).catch(() => {});
 function renderNutrition() {
   const days = plan.days;

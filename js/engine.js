@@ -37,7 +37,7 @@
     activity: 'sedentary', workouts_per_week: '', kcal_per_workout: '300', daily_kcal: '', water_loss_lb: '6', target_date: '',
     lift_rotation: 'Push,Pull,Legs,Push,Pull,Legs,Rest', walk_min_per_week: '0', bike_min_per_week: '0', walk_pace: 'brisk',
     bike_pace: 'moderate', blog_title: 'The Weight Log', blog_intro: '', workout_goal_per_week: '6', gymace_last_sync: '',
-    name: '', my_code: '', water_goal_oz: '100', protein_goal_g: ''
+    name: '', my_code: '', water_goal_oz: '100', protein_goal_g: '', diet: 'lowcarb'
   };
   E.SETTING_KEYS = Object.keys(E.DEFAULTS);
   E.get = function (S, key, dflt) {
@@ -54,10 +54,56 @@
 
   // ---------- the library, with this person's changes ----------
   var LIB = function () { return root.HT_LIB || { foods: [], meals: [] }; };
+  // ---------- diets: each one recolors the library; a person's own changes to a food still win ----------
+  E.DIETS = [
+    { id: 'lowcarb', name: 'Low-carb, protein first',
+      about: 'Meat, eggs, cheese and green vegetables. Bread, sugar, rice, potatoes and most fruit are out; berries and nuts start locked and can be unlocked once tested.' },
+    { id: 'keto', name: 'Keto',
+      about: 'The low-carb list, stricter: no fruit or grain, and every meal under 10 g net carbs (snacks under 5).' },
+    { id: 'carnivore', name: 'Carnivore',
+      about: 'Animal foods only: meat, fish, eggs, cheese, butter and cream. Salt, coffee, tea and broth are fine; plants are out.' },
+    { id: 'clean', name: 'Whole-food reset',
+      about: 'Real food only: no processed meat, no seed-oil dressings or mayo, no sweeteners, no alcohol. Rice, potatoes and fruit are in for energy and training.' },
+    { id: 'mediterranean', name: 'Mediterranean',
+      about: 'Fish, chicken, eggs, olive oil, vegetables, beans, fruit and nuts. No processed meat; red meat and butter start locked, to unlock for now and then.' }
+  ];
+  var DIET_CAP = { keto: { meal: 10, snack: 5 } };
+  var CARNIVORE_EXTRAS = ['butter', 'salt', 'black-pepper', 'bone-broth', 'coffee', 'unsweetened-tea', 'sparkling-water', 'beef-jerky-sugar-free', 'landjaeger-sticks', 'pork-rinds'];
+  var CLEAN_CARBS = ['white-rice', 'potatoes', 'sweet-potato', 'banana', 'apple', 'grapes', 'blueberries', 'raspberries', 'strawberries', 'greek-yogurt-plain-full-fat'];
+  var MED_GREEN = ['beans', 'chickpeas', 'hummus', 'oatmeal', 'greek-yogurt-plain-full-fat', 'feta-cheese', 'olive-oil', 'almonds', 'walnuts', 'pecans', 'macadamia-nuts', 'sweet-potato', 'white-rice', 'potatoes'];
+  var MED_YELLOW = ['bread', 'pasta', 'dry-red-wine', 'butter', 'cottage-cheese'];
+  E.diet = function (S) { var d = E.get(S, 'diet') || 'lowcarb'; return E.DIETS.some(function (x) { return x.id === d; }) ? d : 'lowcarb'; };
+  /* a library food's light under a diet; the library's own light is the low-carb one */
+  E.dietLight = function (diet, f) {
+    var c = f.category, id = f.id, base = f.light, t = f.tags || [];
+    function has(k) { return t.indexOf(k) >= 0; }
+    if (diet === 'keto') return c === 'fruit' || c === 'grain' || c === 'sugar' || id === 'hummus' ? 'red' : base;
+    if (diet === 'carnivore') {
+      if (c === 'meat' || c === 'poultry' || c === 'seafood' || c === 'eggs') return base === 'red' ? 'red' : 'green';
+      if (c === 'dairy') return base;
+      return CARNIVORE_EXTRAS.indexOf(id) >= 0 ? 'green' : 'red';
+    }
+    if (diet === 'clean') {
+      if (has('processed') || has('seed_oil') || has('sweetener') || has('alcohol') || c === 'sugar') return 'red';
+      if (CLEAN_CARBS.indexOf(id) >= 0) return 'green';
+      if (id === 'oatmeal' || id === 'beans' || id === 'chickpeas' || id === 'hummus') return 'yellow';
+      return base;
+    }
+    if (diet === 'mediterranean') {
+      if (has('processed') || has('seed_oil') || has('sweetener') || c === 'sugar') return 'red';
+      if (c === 'fruit' || MED_GREEN.indexOf(id) >= 0) return 'green';
+      if (MED_YELLOW.indexOf(id) >= 0 || c === 'meat') return 'yellow';
+      return base;
+    }
+    return base;
+  };
   E.foods = function (S) {
-    var custom = {};
+    var custom = {}, diet = E.diet(S);
     S.db.foods_custom.forEach(function (r) { custom[r.food_id] = r.data || {}; });
-    var out = LIB().foods.map(function (f) { return Object.assign({}, f, custom[f.id] || {}, { id: f.id, custom: false }); });
+    var out = LIB().foods.map(function (f) {
+      var l = E.dietLight(diet, f);
+      return Object.assign({}, f, { light: l, unlocked: l === 'green' }, custom[f.id] || {}, { id: f.id, custom: false });
+    });
     Object.keys(custom).forEach(function (id) {
       if (id.indexOf('u-') === 0 && custom[id].name) out.push(Object.assign({ unit_grams: {}, kcal_100: null, protein_100: null, fat_100: null, carbs_100: null }, custom[id], { id: id, custom: true }));
     });
@@ -358,11 +404,17 @@
     var a = h >>> 0;
     return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; var t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   }
+  /* a meal fits when every food in it is allowed, and under keto when it is under the carb cap */
+  E.mealFits = function (S, m, foods, macros) {
+    if (!m.ingredients.every(function (i) { var f = foods[i.food_id]; return f && f.unlocked && f.light !== 'red'; })) return false;
+    var cap = DIET_CAP[E.diet(S)];
+    if (!cap) return true;
+    var n = macros[m.id];
+    return !n || n.carbs <= (m.meal_type === 'snack' ? cap.snack : cap.meal);
+  };
   E.allowedMeals = function (S) {
-    var foods = E.foodMap(S);
-    return E.meals(S).filter(function (m) {
-      return m.enabled && m.ingredients.every(function (i) { var f = foods[i.food_id]; return f && f.unlocked && f.light !== 'red'; });
-    });
+    var foods = E.foodMap(S), macros = DIET_CAP[E.diet(S)] ? E.mealMacros(S) : {};
+    return E.meals(S).filter(function (m) { return m.enabled && E.mealFits(S, m, foods, macros); });
   };
   E.plan = function (S, id) { return S.db.plans.find(function (p) { return String(p.id) === String(id); }) || null; };
   E.planFoods = function (S, id) {

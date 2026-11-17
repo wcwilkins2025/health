@@ -132,7 +132,10 @@ window.HT_LIB = {
    "carbs_100": 1,
    "unit_grams": {
     "slice": 8
-   }
+   },
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "breakfast-sausage",
@@ -150,7 +153,10 @@ window.HT_LIB = {
    "carbs_100": 1,
    "unit_grams": {
     "link": 28
-   }
+   },
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "jimmy-dean-sausage-patties",
@@ -168,7 +174,10 @@ window.HT_LIB = {
    "carbs_100": 1,
    "unit_grams": {
     "patty": 34
-   }
+   },
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "italian-sausage",
@@ -186,7 +195,10 @@ window.HT_LIB = {
    "carbs_100": 2,
    "unit_grams": {
     "link": 85
-   }
+   },
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "chicken-thighs",
@@ -284,7 +296,10 @@ window.HT_LIB = {
    "protein_100": 23,
    "fat_100": 44,
    "carbs_100": 1,
-   "unit_grams": {}
+   "unit_grams": {},
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "salami",
@@ -300,7 +315,10 @@ window.HT_LIB = {
    "protein_100": 22,
    "fat_100": 34,
    "carbs_100": 1,
-   "unit_grams": {}
+   "unit_grams": {},
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "deli-turkey",
@@ -316,7 +334,10 @@ window.HT_LIB = {
    "protein_100": 18,
    "fat_100": 2,
    "carbs_100": 2,
-   "unit_grams": {}
+   "unit_grams": {},
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "deli-ham",
@@ -332,7 +353,10 @@ window.HT_LIB = {
    "protein_100": 17,
    "fat_100": 4,
    "carbs_100": 2,
-   "unit_grams": {}
+   "unit_grams": {},
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "beef-jerky-sugar-free",
@@ -366,7 +390,10 @@ window.HT_LIB = {
    "carbs_100": 2,
    "unit_grams": {
     "stick": 28
-   }
+   },
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "pork-rinds",
@@ -698,7 +725,10 @@ window.HT_LIB = {
    "carbs_100": 0.6,
    "unit_grams": {
     "tbsp": 14
-   }
+   },
+   "tags": [
+    "seed_oil"
+   ]
   },
   {
    "id": "ranch-dressing",
@@ -716,7 +746,10 @@ window.HT_LIB = {
    "carbs_100": 5,
    "unit_grams": {
     "tbsp": 15
-   }
+   },
+   "tags": [
+    "seed_oil"
+   ]
   },
   {
    "id": "blue-cheese-dressing",
@@ -734,7 +767,10 @@ window.HT_LIB = {
    "carbs_100": 4,
    "unit_grams": {
     "tbsp": 15
-   }
+   },
+   "tags": [
+    "seed_oil"
+   ]
   },
   {
    "id": "caesar-dressing",
@@ -752,7 +788,10 @@ window.HT_LIB = {
    "carbs_100": 3,
    "unit_grams": {
     "tbsp": 15
-   }
+   },
+   "tags": [
+    "seed_oil"
+   ]
   },
   {
    "id": "light-italian-dressing",
@@ -770,7 +809,10 @@ window.HT_LIB = {
    "carbs_100": 6,
    "unit_grams": {
     "tbsp": 15
-   }
+   },
+   "tags": [
+    "seed_oil"
+   ]
   },
   {
    "id": "mustard",
@@ -1610,7 +1652,10 @@ window.HT_LIB = {
    "carbs_100": 9,
    "unit_grams": {
     "tortilla": 45
-   }
+   },
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "diet-soda",
@@ -1628,7 +1673,10 @@ window.HT_LIB = {
    "carbs_100": 0,
    "unit_grams": {
     "can": 355
-   }
+   },
+   "tags": [
+    "sweetener"
+   ]
   },
   {
    "id": "dry-red-wine",
@@ -1644,7 +1692,10 @@ window.HT_LIB = {
    "protein_100": 0.1,
    "fat_100": 0,
    "carbs_100": 2.6,
-   "unit_grams": {}
+   "unit_grams": {},
+   "tags": [
+    "alcohol"
+   ]
   },
   {
    "id": "whiskey-or-vodka",
@@ -1660,7 +1711,10 @@ window.HT_LIB = {
    "protein_100": 0,
    "fat_100": 0,
    "carbs_100": 0,
-   "unit_grams": {}
+   "unit_grams": {},
+   "tags": [
+    "alcohol"
+   ]
   },
   {
    "id": "bread",
@@ -1750,7 +1804,11 @@ window.HT_LIB = {
    "carbs_100": 38,
    "unit_grams": {
     "serving": 117
-   }
+   },
+   "tags": [
+    "processed",
+    "seed_oil"
+   ]
   },
   {
    "id": "corn",
@@ -1822,7 +1880,10 @@ window.HT_LIB = {
    "carbs_100": 80,
    "unit_grams": {
     "cup": 30
-   }
+   },
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "chips",
@@ -1838,7 +1899,11 @@ window.HT_LIB = {
    "protein_100": 7,
    "fat_100": 35,
    "carbs_100": 48,
-   "unit_grams": {}
+   "unit_grams": {},
+   "tags": [
+    "processed",
+    "seed_oil"
+   ]
   },
   {
    "id": "crackers",
@@ -1856,7 +1921,10 @@ window.HT_LIB = {
    "carbs_100": 60,
    "unit_grams": {
     "cracker": 3
-   }
+   },
+   "tags": [
+    "processed"
+   ]
   },
   {
    "id": "sugar",
@@ -1962,7 +2030,10 @@ window.HT_LIB = {
    "protein_100": 0.5,
    "fat_100": 0,
    "carbs_100": 3.6,
-   "unit_grams": {}
+   "unit_grams": {},
+   "tags": [
+    "alcohol"
+   ]
   },
   {
    "id": "banana",
@@ -2124,7 +2195,11 @@ window.HT_LIB = {
    "carbs_100": 40,
    "unit_grams": {
     "bar": 60
-   }
+   },
+   "tags": [
+    "processed",
+    "sweetener"
+   ]
   },
   {
    "id": "breaded-chicken",
@@ -2142,7 +2217,97 @@ window.HT_LIB = {
    "carbs_100": 15,
    "unit_grams": {
     "serving": 120
+   },
+   "tags": [
+    "processed",
+    "seed_oil"
+   ]
+  },
+  {
+   "id": "feta-cheese",
+   "name": "Feta cheese",
+   "category": "dairy",
+   "light": "green",
+   "carbs_per_serving": 1.1,
+   "serving": "1 oz",
+   "store_section": "Dairy & Eggs",
+   "note": "Block in brine keeps longest",
+   "unlocked": true,
+   "kcal_100": 265,
+   "protein_100": 14,
+   "fat_100": 21,
+   "carbs_100": 4,
+   "unit_grams": {}
+  },
+  {
+   "id": "sweet-potato",
+   "name": "Sweet potato",
+   "category": "vegetable",
+   "light": "red",
+   "carbs_per_serving": 26,
+   "serving": "1 medium",
+   "store_section": "Produce",
+   "note": "Baked or roasted",
+   "unlocked": false,
+   "kcal_100": 90,
+   "protein_100": 2,
+   "fat_100": 0.2,
+   "carbs_100": 17.5,
+   "unit_grams": {
+    "medium": 150
    }
+  },
+  {
+   "id": "chickpeas",
+   "name": "Chickpeas",
+   "category": "vegetable",
+   "light": "red",
+   "carbs_per_serving": 13,
+   "serving": "1/2 cup",
+   "store_section": "Pantry",
+   "note": "Canned, rinsed and drained",
+   "unlocked": false,
+   "kcal_100": 139,
+   "protein_100": 7,
+   "fat_100": 2.6,
+   "carbs_100": 16,
+   "unit_grams": {
+    "cup": 164
+   }
+  },
+  {
+   "id": "hummus",
+   "name": "Hummus",
+   "category": "condiment",
+   "light": "yellow",
+   "carbs_per_serving": 2.5,
+   "serving": "2 tbsp",
+   "store_section": "Deli",
+   "note": "A dip, not a meal: about 2 g net carbs a tablespoon",
+   "unlocked": false,
+   "kcal_100": 166,
+   "protein_100": 7.9,
+   "fat_100": 9.6,
+   "carbs_100": 8.3,
+   "unit_grams": {
+    "tbsp": 15
+   }
+  },
+  {
+   "id": "beef-liver",
+   "name": "Beef liver",
+   "category": "meat",
+   "light": "green",
+   "carbs_per_serving": 4.4,
+   "serving": "4 oz",
+   "store_section": "Meat",
+   "note": "The most nutrient-dense food in the store; once a week is plenty",
+   "unlocked": true,
+   "kcal_100": 135,
+   "protein_100": 20.4,
+   "fat_100": 3.6,
+   "carbs_100": 3.9,
+   "unit_grams": {}
   }
  ],
  "meals": [
@@ -3558,6 +3723,1576 @@ window.HT_LIB = {
      "food_id": "bone-broth",
      "qty": 1,
      "unit": "cup"
+    }
+   ]
+  },
+  {
+   "id": "ground-beef-and-eggs",
+   "name": "Ground beef and eggs",
+   "meal_type": "breakfast",
+   "portable": false,
+   "batch": false,
+   "instructions": "Brown 4 oz ground beef in the butter with the salt. Push it to the side, crack in 3 eggs and scramble them into the beef.",
+   "ingredients": [
+    {
+     "food_id": "ground-beef-80-20",
+     "qty": 4,
+     "unit": "oz"
+    },
+    {
+     "food_id": "eggs",
+     "qty": 3,
+     "unit": "egg"
+    },
+    {
+     "food_id": "butter",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.25,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "butter-seared-sirloin",
+   "name": "Butter-seared sirloin",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Salt the steak and let it sit 20 minutes. Sear in a hot dry pan 3 to 4 minutes a side for medium rare. Add the butter for the last minute and spoon it over. Rest 5 minutes before cutting.",
+   "ingredients": [
+    {
+     "food_id": "sirloin-steak",
+     "qty": 8,
+     "unit": "oz"
+    },
+    {
+     "food_id": "butter",
+     "qty": 2,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.5,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "beef-liver-and-bacon",
+   "name": "Beef liver and bacon",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Fry the bacon and set it aside. Slice the liver thin, pat it dry and salt it. Fry it in the bacon fat and butter about 2 minutes a side, still pink inside. Serve with the bacon.",
+   "ingredients": [
+    {
+     "food_id": "beef-liver",
+     "qty": 4,
+     "unit": "oz"
+    },
+    {
+     "food_id": "bacon",
+     "qty": 3,
+     "unit": "slice"
+    },
+    {
+     "food_id": "butter",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.25,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "pan-seared-salmon-in-butter",
+   "name": "Pan-seared salmon in butter",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Pat the salmon dry and salt it. Cook skin down in a hot pan 4 to 5 minutes until the skin is crisp, flip, add the butter and cook 2 more minutes, spooning the butter over.",
+   "ingredients": [
+    {
+     "food_id": "salmon-fillet",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "butter",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.25,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "crispy-chicken-thighs",
+   "name": "Crispy chicken thighs",
+   "meal_type": "lunch",
+   "portable": true,
+   "batch": true,
+   "instructions": "Salt skin-on thighs. Start them skin down in a cold cast-iron pan over medium heat and leave them 15 minutes until the skin is crisp. Flip and finish 8 to 10 minutes to 175F inside. Cook a batch; they reheat well and travel cold.",
+   "ingredients": [
+    {
+     "food_id": "chicken-thighs",
+     "qty": 8,
+     "unit": "oz"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.5,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "burger-patties-with-cheddar",
+   "name": "Burger patties with cheddar",
+   "meal_type": "lunch",
+   "portable": true,
+   "batch": true,
+   "instructions": "Form two 3 oz patties and salt them. Cook 3 minutes a side and top with the cheddar to melt. Make a batch; cold patties ride well in the cooler.",
+   "ingredients": [
+    {
+     "food_id": "ground-beef-80-20",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "cheddar-cheese",
+     "qty": 1,
+     "unit": "oz"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.25,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "sardines-and-eggs",
+   "name": "Sardines and hard-boiled eggs",
+   "meal_type": "lunch",
+   "portable": true,
+   "batch": false,
+   "instructions": "A can of sardines, drained, with 2 hard-boiled eggs and salt. No cooking if the eggs are made ahead.",
+   "ingredients": [
+    {
+     "food_id": "canned-sardines",
+     "qty": 1,
+     "unit": "can"
+    },
+    {
+     "food_id": "eggs",
+     "qty": 2,
+     "unit": "egg"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.25,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "pork-chops-in-butter",
+   "name": "Pork chops in butter",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Salt the chops. Sear 4 to 5 minutes a side to 145F inside, with the butter in the pan for the last minute. Rest 5 minutes.",
+   "ingredients": [
+    {
+     "food_id": "pork-chops",
+     "qty": 8,
+     "unit": "oz"
+    },
+    {
+     "food_id": "butter",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.5,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "shrimp-in-butter",
+   "name": "Shrimp in butter",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Pat the shrimp dry and salt them. Melt the butter in a hot pan and cook the shrimp 1 to 2 minutes a side until pink and curled.",
+   "ingredients": [
+    {
+     "food_id": "shrimp",
+     "qty": 8,
+     "unit": "oz"
+    },
+    {
+     "food_id": "butter",
+     "qty": 2,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.25,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "veggie-omelet-with-feta",
+   "name": "Veggie omelet with feta",
+   "meal_type": "breakfast",
+   "portable": false,
+   "batch": false,
+   "instructions": "Soften the mushrooms and spinach in the butter. Pour in 3 beaten eggs, cook until nearly set, scatter the feta over half and fold.",
+   "ingredients": [
+    {
+     "food_id": "eggs",
+     "qty": 3,
+     "unit": "egg"
+    },
+    {
+     "food_id": "spinach",
+     "qty": 1,
+     "unit": "cup"
+    },
+    {
+     "food_id": "mushrooms",
+     "qty": 0.5,
+     "unit": "cup"
+    },
+    {
+     "food_id": "feta-cheese",
+     "qty": 1,
+     "unit": "oz"
+    },
+    {
+     "food_id": "butter",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "crustless-spinach-quiche",
+   "name": "Crustless spinach quiche",
+   "meal_type": "breakfast",
+   "portable": true,
+   "batch": true,
+   "instructions": "Amounts are one serving; make 6 at once. Whisk 18 eggs with 3/4 cup cream. Stir in 6 cups wilted spinach, 12 slices cooked chopped bacon and 6 slices torn Swiss. Bake in a greased 9x13 pan at 350F for 35 to 40 minutes until the middle is set. Cut in 6; it keeps 5 days.",
+   "ingredients": [
+    {
+     "food_id": "eggs",
+     "qty": 3,
+     "unit": "egg"
+    },
+    {
+     "food_id": "heavy-cream",
+     "qty": 2,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "spinach",
+     "qty": 1,
+     "unit": "cup"
+    },
+    {
+     "food_id": "swiss-cheese",
+     "qty": 1,
+     "unit": "slice"
+    },
+    {
+     "food_id": "bacon",
+     "qty": 2,
+     "unit": "slice"
+    }
+   ]
+  },
+  {
+   "id": "cream-cheese-pancakes",
+   "name": "Cream cheese pancakes",
+   "meal_type": "breakfast",
+   "portable": false,
+   "batch": false,
+   "instructions": "Blend 2 eggs with 2 oz soft cream cheese until smooth and let it rest 2 minutes. Cook thin rounds in the butter over medium-low heat, about 2 minutes a side.",
+   "ingredients": [
+    {
+     "food_id": "eggs",
+     "qty": 2,
+     "unit": "egg"
+    },
+    {
+     "food_id": "cream-cheese",
+     "qty": 2,
+     "unit": "oz"
+    },
+    {
+     "food_id": "butter",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "cobb-salad",
+   "name": "Cobb salad",
+   "meal_type": "lunch",
+   "portable": true,
+   "batch": false,
+   "instructions": "Romaine topped with sliced cooked chicken, crumbled bacon, a chopped hard-boiled egg, avocado and tomato. Dressing on the side if it travels.",
+   "ingredients": [
+    {
+     "food_id": "romaine-lettuce",
+     "qty": 2,
+     "unit": "cup"
+    },
+    {
+     "food_id": "chicken-breast",
+     "qty": 4,
+     "unit": "oz"
+    },
+    {
+     "food_id": "bacon",
+     "qty": 2,
+     "unit": "slice"
+    },
+    {
+     "food_id": "eggs",
+     "qty": 1,
+     "unit": "egg"
+    },
+    {
+     "food_id": "avocado",
+     "qty": 0.5,
+     "unit": "avocado"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 2,
+     "unit": "slice"
+    },
+    {
+     "food_id": "blue-cheese-dressing",
+     "qty": 2,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "buffalo-chicken-lettuce-wraps",
+   "name": "Buffalo chicken lettuce wraps",
+   "meal_type": "lunch",
+   "portable": true,
+   "batch": false,
+   "instructions": "Toss shredded rotisserie chicken with hot sauce and melted butter. Spoon into romaine leaves with sliced celery and a drizzle of blue cheese dressing.",
+   "ingredients": [
+    {
+     "food_id": "rotisserie-chicken",
+     "qty": 5,
+     "unit": "oz"
+    },
+    {
+     "food_id": "hot-sauce",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "butter",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "romaine-lettuce",
+     "qty": 1,
+     "unit": "cup"
+    },
+    {
+     "food_id": "celery",
+     "qty": 1,
+     "unit": "stalk"
+    },
+    {
+     "food_id": "blue-cheese-dressing",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "egg-roll-in-a-bowl",
+   "name": "Egg roll in a bowl",
+   "meal_type": "dinner",
+   "portable": true,
+   "batch": true,
+   "instructions": "Brown the ground turkey with the garlic in the oil. Add the slaw mix and soy sauce and stir-fry 4 to 5 minutes until just tender. Makes a good batch for lunches.",
+   "ingredients": [
+    {
+     "food_id": "ground-turkey",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "tri-color-slaw-mix",
+     "qty": 2,
+     "unit": "cup"
+    },
+    {
+     "food_id": "soy-sauce",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "garlic",
+     "qty": 1,
+     "unit": "clove"
+    },
+    {
+     "food_id": "avocado-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "philly-cheesesteak-skillet",
+   "name": "Philly cheesesteak skillet",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Slice the steak thin. Cook the pepper, onion and mushrooms in the butter until soft. Add the steak and cook 2 minutes, then lay the Swiss over and cover until melted.",
+   "ingredients": [
+    {
+     "food_id": "sirloin-steak",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "bell-pepper",
+     "qty": 0.5,
+     "unit": "pepper"
+    },
+    {
+     "food_id": "onion",
+     "qty": 0.25,
+     "unit": "onion"
+    },
+    {
+     "food_id": "mushrooms",
+     "qty": 0.5,
+     "unit": "cup"
+    },
+    {
+     "food_id": "swiss-cheese",
+     "qty": 2,
+     "unit": "slice"
+    },
+    {
+     "food_id": "butter",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "chicken-alfredo-zucchini-noodles",
+   "name": "Chicken Alfredo with zucchini noodles",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Cook sliced chicken breast in the butter with the garlic. Add the cream and Parmesan and simmer until it coats a spoon. Toss in spiralized zucchini for the last 2 minutes.",
+   "ingredients": [
+    {
+     "food_id": "chicken-breast",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "zucchini",
+     "qty": 2,
+     "unit": "cup"
+    },
+    {
+     "food_id": "heavy-cream",
+     "qty": 3,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "parmesan-cheese",
+     "qty": 1,
+     "unit": "oz"
+    },
+    {
+     "food_id": "butter",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "garlic",
+     "qty": 1,
+     "unit": "clove"
+    }
+   ]
+  },
+  {
+   "id": "chicken-fajita-bowl",
+   "name": "Chicken fajita bowl",
+   "meal_type": "dinner",
+   "portable": true,
+   "batch": false,
+   "instructions": "Slice the thighs and toss with the taco seasoning. Sear in a hot pan with the pepper and onion until charred at the edges. Top with sour cream and avocado. No tortilla.",
+   "ingredients": [
+    {
+     "food_id": "chicken-thighs",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "bell-pepper",
+     "qty": 0.5,
+     "unit": "pepper"
+    },
+    {
+     "food_id": "onion",
+     "qty": 0.25,
+     "unit": "onion"
+    },
+    {
+     "food_id": "taco-seasoning",
+     "qty": 1,
+     "unit": "tsp"
+    },
+    {
+     "food_id": "sour-cream",
+     "qty": 2,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "avocado",
+     "qty": 0.5,
+     "unit": "avocado"
+    }
+   ]
+  },
+  {
+   "id": "stuffed-peppers-low-carb",
+   "name": "Cheesy beef stuffed peppers",
+   "meal_type": "dinner",
+   "portable": true,
+   "batch": true,
+   "instructions": "Brown the beef with the onion and seasoning, stir in chopped tomato. Fill a halved pepper, top with mozzarella and bake at 375F for 25 minutes.",
+   "ingredients": [
+    {
+     "food_id": "ground-beef-80-20",
+     "qty": 5,
+     "unit": "oz"
+    },
+    {
+     "food_id": "bell-pepper",
+     "qty": 1,
+     "unit": "pepper"
+    },
+    {
+     "food_id": "onion",
+     "qty": 0.25,
+     "unit": "onion"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 2,
+     "unit": "slice"
+    },
+    {
+     "food_id": "mozzarella-cheese",
+     "qty": 1,
+     "unit": "oz"
+    },
+    {
+     "food_id": "italian-seasoning",
+     "qty": 0.5,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "deviled-eggs",
+   "name": "Deviled eggs",
+   "meal_type": "snack",
+   "portable": true,
+   "batch": false,
+   "instructions": "Halve 2 hard-boiled eggs, mash the yolks with mayo and mustard, spoon back in. Salt and paprika if you have it.",
+   "ingredients": [
+    {
+     "food_id": "eggs",
+     "qty": 2,
+     "unit": "egg"
+    },
+    {
+     "food_id": "mayonnaise",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "mustard",
+     "qty": 0.5,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "parmesan-crisps",
+   "name": "Parmesan crisps",
+   "meal_type": "snack",
+   "portable": true,
+   "batch": false,
+   "instructions": "Bake tablespoon mounds of grated Parmesan on parchment at 400F for 5 to 6 minutes until golden. They crisp as they cool.",
+   "ingredients": [
+    {
+     "food_id": "parmesan-cheese",
+     "qty": 1,
+     "unit": "oz"
+    }
+   ]
+  },
+  {
+   "id": "avocado-with-salt-and-lemon",
+   "name": "Avocado with salt and lemon",
+   "meal_type": "snack",
+   "portable": false,
+   "batch": false,
+   "instructions": "Half an avocado with a squeeze of lemon and a good pinch of salt. Eat it from the skin with a spoon.",
+   "ingredients": [
+    {
+     "food_id": "avocado",
+     "qty": 0.5,
+     "unit": "avocado"
+    },
+    {
+     "food_id": "lemon-juice",
+     "qty": 0.5,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.25,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "greek-yogurt-with-berries",
+   "name": "Greek yogurt with berries",
+   "meal_type": "breakfast",
+   "portable": true,
+   "batch": false,
+   "instructions": "Plain full-fat Greek yogurt topped with blueberries and strawberries. Nothing sweetened.",
+   "ingredients": [
+    {
+     "food_id": "greek-yogurt-plain-full-fat",
+     "qty": 0.75,
+     "unit": "cup"
+    },
+    {
+     "food_id": "blueberries",
+     "qty": 0.25,
+     "unit": "cup"
+    },
+    {
+     "food_id": "strawberries",
+     "qty": 0.25,
+     "unit": "cup"
+    }
+   ]
+  },
+  {
+   "id": "oatmeal-with-blueberries-and-walnuts",
+   "name": "Oatmeal with blueberries and walnuts",
+   "meal_type": "breakfast",
+   "portable": false,
+   "batch": false,
+   "instructions": "Cook plain oats in water. Top with blueberries, chopped walnuts and a scoop of Greek yogurt for protein.",
+   "ingredients": [
+    {
+     "food_id": "oatmeal",
+     "qty": 1,
+     "unit": "cup"
+    },
+    {
+     "food_id": "blueberries",
+     "qty": 0.5,
+     "unit": "cup"
+    },
+    {
+     "food_id": "walnuts",
+     "qty": 0.5,
+     "unit": "oz"
+    },
+    {
+     "food_id": "greek-yogurt-plain-full-fat",
+     "qty": 0.5,
+     "unit": "cup"
+    }
+   ]
+  },
+  {
+   "id": "potato-and-egg-hash",
+   "name": "Potato and egg hash",
+   "meal_type": "breakfast",
+   "portable": false,
+   "batch": false,
+   "instructions": "Dice the potato and cook it in the olive oil 10 to 12 minutes until browned, adding the pepper and onion halfway. Make 3 wells and crack in the eggs, cover until set.",
+   "ingredients": [
+    {
+     "food_id": "potatoes",
+     "qty": 1,
+     "unit": "medium"
+    },
+    {
+     "food_id": "eggs",
+     "qty": 3,
+     "unit": "egg"
+    },
+    {
+     "food_id": "bell-pepper",
+     "qty": 0.5,
+     "unit": "pepper"
+    },
+    {
+     "food_id": "onion",
+     "qty": 0.25,
+     "unit": "onion"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "chicken-rice-and-broccoli",
+   "name": "Chicken, rice and broccoli",
+   "meal_type": "lunch",
+   "portable": true,
+   "batch": true,
+   "instructions": "Season the chicken with garlic powder and salt and roast at 425F for 20 minutes with the broccoli tossed in the oil. Serve over the rice. Cook a batch for the week.",
+   "ingredients": [
+    {
+     "food_id": "chicken-breast",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "white-rice",
+     "qty": 0.75,
+     "unit": "cup"
+    },
+    {
+     "food_id": "broccoli",
+     "qty": 1,
+     "unit": "cup"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "garlic-powder",
+     "qty": 0.5,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "greek-chicken-salad-with-feta",
+   "name": "Greek chicken salad with feta",
+   "meal_type": "lunch",
+   "portable": true,
+   "batch": false,
+   "instructions": "Chopped romaine, cucumber and tomato with olives, feta and sliced chicken. Olive oil and lemon over the top.",
+   "ingredients": [
+    {
+     "food_id": "chicken-breast",
+     "qty": 5,
+     "unit": "oz"
+    },
+    {
+     "food_id": "romaine-lettuce",
+     "qty": 2,
+     "unit": "cup"
+    },
+    {
+     "food_id": "cucumber",
+     "qty": 0.25,
+     "unit": "cucumber"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 3,
+     "unit": "slice"
+    },
+    {
+     "food_id": "olives",
+     "qty": 6,
+     "unit": "olive"
+    },
+    {
+     "food_id": "feta-cheese",
+     "qty": 1,
+     "unit": "oz"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "lemon-juice",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "tuna-and-white-bean-salad",
+   "name": "Tuna and white bean salad",
+   "meal_type": "lunch",
+   "portable": true,
+   "batch": false,
+   "instructions": "Drained tuna and rinsed beans with chopped tomato and cucumber, dressed with olive oil, lemon and salt.",
+   "ingredients": [
+    {
+     "food_id": "canned-tuna",
+     "qty": 1,
+     "unit": "can"
+    },
+    {
+     "food_id": "beans",
+     "qty": 0.5,
+     "unit": "cup"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 2,
+     "unit": "slice"
+    },
+    {
+     "food_id": "cucumber",
+     "qty": 0.25,
+     "unit": "cucumber"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "lemon-juice",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "salmon-rice-bowl",
+   "name": "Salmon rice bowl",
+   "meal_type": "lunch",
+   "portable": false,
+   "batch": false,
+   "instructions": "Roast the salmon at 400F for 12 minutes and flake it over the rice. Add sliced cucumber and avocado and a splash of soy sauce.",
+   "ingredients": [
+    {
+     "food_id": "salmon-fillet",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "white-rice",
+     "qty": 0.75,
+     "unit": "cup"
+    },
+    {
+     "food_id": "cucumber",
+     "qty": 0.25,
+     "unit": "cucumber"
+    },
+    {
+     "food_id": "avocado",
+     "qty": 0.5,
+     "unit": "avocado"
+    },
+    {
+     "food_id": "soy-sauce",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "chickpea-feta-chicken-salad",
+   "name": "Chickpea, feta and chicken salad",
+   "meal_type": "lunch",
+   "portable": true,
+   "batch": false,
+   "instructions": "Shredded rotisserie chicken, rinsed chickpeas, cucumber, tomato and feta, with olive oil and lemon. Keeps two days in the fridge.",
+   "ingredients": [
+    {
+     "food_id": "rotisserie-chicken",
+     "qty": 4,
+     "unit": "oz"
+    },
+    {
+     "food_id": "chickpeas",
+     "qty": 0.5,
+     "unit": "cup"
+    },
+    {
+     "food_id": "cucumber",
+     "qty": 0.25,
+     "unit": "cucumber"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 2,
+     "unit": "slice"
+    },
+    {
+     "food_id": "feta-cheese",
+     "qty": 1,
+     "unit": "oz"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "lemon-juice",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "steak-potato-and-green-beans",
+   "name": "Steak, baked potato and green beans",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Bake the potato at 425F for 45 to 50 minutes. Sear the salted steak 3 to 4 minutes a side and rest it. Steam the green beans and finish them with the butter.",
+   "ingredients": [
+    {
+     "food_id": "sirloin-steak",
+     "qty": 8,
+     "unit": "oz"
+    },
+    {
+     "food_id": "potatoes",
+     "qty": 1,
+     "unit": "medium"
+    },
+    {
+     "food_id": "green-beans",
+     "qty": 1,
+     "unit": "cup"
+    },
+    {
+     "food_id": "butter",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "salmon-rice-and-asparagus",
+   "name": "Salmon, rice and asparagus",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Roast the salmon and the oiled asparagus on one pan at 400F for 12 to 14 minutes. Squeeze the lemon over and serve with the rice.",
+   "ingredients": [
+    {
+     "food_id": "salmon-fillet",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "white-rice",
+     "qty": 0.75,
+     "unit": "cup"
+    },
+    {
+     "food_id": "asparagus",
+     "qty": 6,
+     "unit": "spear"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "lemon-juice",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "lemon-chicken-thighs-and-potatoes",
+   "name": "Lemon chicken thighs and potatoes",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": true,
+   "instructions": "Toss the thighs and cut potatoes with the oil, lemon, garlic and seasoning. Roast on one pan at 425F for 35 to 40 minutes until the skin is crisp. Make a pan for the week.",
+   "ingredients": [
+    {
+     "food_id": "chicken-thighs",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "potatoes",
+     "qty": 1,
+     "unit": "medium"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "lemon-juice",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "garlic",
+     "qty": 2,
+     "unit": "clove"
+    },
+    {
+     "food_id": "italian-seasoning",
+     "qty": 0.5,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "shrimp-and-rice-skillet",
+   "name": "Shrimp and rice skillet",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Cook the pepper, onion and garlic in the olive oil until soft. Add the shrimp and cook 3 minutes until pink. Stir in the cooked rice to warm through.",
+   "ingredients": [
+    {
+     "food_id": "shrimp",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "white-rice",
+     "qty": 0.75,
+     "unit": "cup"
+    },
+    {
+     "food_id": "bell-pepper",
+     "qty": 0.5,
+     "unit": "pepper"
+    },
+    {
+     "food_id": "onion",
+     "qty": 0.25,
+     "unit": "onion"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "garlic",
+     "qty": 1,
+     "unit": "clove"
+    }
+   ]
+  },
+  {
+   "id": "cod-with-tomatoes-and-olives",
+   "name": "Cod with tomatoes and olives",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Warm the garlic in the oil, add chopped tomato and olives and simmer 5 minutes. Nestle the cod in, cover and cook 8 to 10 minutes until it flakes. Serve over the rice.",
+   "ingredients": [
+    {
+     "food_id": "cod-or-tilapia",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 4,
+     "unit": "slice"
+    },
+    {
+     "food_id": "olives",
+     "qty": 6,
+     "unit": "olive"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "white-rice",
+     "qty": 0.5,
+     "unit": "cup"
+    },
+    {
+     "food_id": "garlic",
+     "qty": 1,
+     "unit": "clove"
+    }
+   ]
+  },
+  {
+   "id": "turkey-and-sweet-potato-skillet",
+   "name": "Turkey and sweet potato skillet",
+   "meal_type": "dinner",
+   "portable": true,
+   "batch": true,
+   "instructions": "Cook the diced sweet potato in the oil 10 minutes until tender. Add the onion and turkey and brown it, then wilt in the spinach. Good batch food.",
+   "ingredients": [
+    {
+     "food_id": "ground-turkey",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "sweet-potato",
+     "qty": 1,
+     "unit": "medium"
+    },
+    {
+     "food_id": "spinach",
+     "qty": 1,
+     "unit": "cup"
+    },
+    {
+     "food_id": "onion",
+     "qty": 0.25,
+     "unit": "onion"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "chicken-souvlaki-plate",
+   "name": "Chicken souvlaki plate",
+   "meal_type": "dinner",
+   "portable": false,
+   "batch": false,
+   "instructions": "Marinate cubed chicken in the oil, lemon and garlic for 30 minutes, then grill or broil 10 to 12 minutes. Stir grated cucumber into the yogurt for a sauce. Serve with the rice and tomato.",
+   "ingredients": [
+    {
+     "food_id": "chicken-breast",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "greek-yogurt-plain-full-fat",
+     "qty": 0.25,
+     "unit": "cup"
+    },
+    {
+     "food_id": "cucumber",
+     "qty": 0.25,
+     "unit": "cucumber"
+    },
+    {
+     "food_id": "white-rice",
+     "qty": 0.5,
+     "unit": "cup"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "lemon-juice",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "garlic",
+     "qty": 1,
+     "unit": "clove"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 2,
+     "unit": "slice"
+    }
+   ]
+  },
+  {
+   "id": "beef-and-rice-stuffed-peppers",
+   "name": "Beef and rice stuffed peppers",
+   "meal_type": "dinner",
+   "portable": true,
+   "batch": true,
+   "instructions": "Brown the beef, stir in the rice, chopped tomato and seasoning. Fill a halved pepper, top with mozzarella and bake at 375F for 25 minutes.",
+   "ingredients": [
+    {
+     "food_id": "ground-beef-80-20",
+     "qty": 5,
+     "unit": "oz"
+    },
+    {
+     "food_id": "white-rice",
+     "qty": 0.5,
+     "unit": "cup"
+    },
+    {
+     "food_id": "bell-pepper",
+     "qty": 1,
+     "unit": "pepper"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 3,
+     "unit": "slice"
+    },
+    {
+     "food_id": "mozzarella-cheese",
+     "qty": 1,
+     "unit": "oz"
+    },
+    {
+     "food_id": "italian-seasoning",
+     "qty": 0.5,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "banana-and-eggs",
+   "name": "Banana and two hard-boiled eggs",
+   "meal_type": "snack",
+   "portable": true,
+   "batch": false,
+   "instructions": "A banana and 2 hard-boiled eggs. Good before a workout.",
+   "ingredients": [
+    {
+     "food_id": "banana",
+     "qty": 1,
+     "unit": "medium"
+    },
+    {
+     "food_id": "eggs",
+     "qty": 2,
+     "unit": "egg"
+    }
+   ]
+  },
+  {
+   "id": "hummus-and-vegetables",
+   "name": "Hummus and vegetables",
+   "meal_type": "snack",
+   "portable": true,
+   "batch": false,
+   "instructions": "Hummus with sliced cucumber and pepper for dipping.",
+   "ingredients": [
+    {
+     "food_id": "hummus",
+     "qty": 3,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "cucumber",
+     "qty": 0.25,
+     "unit": "cucumber"
+    },
+    {
+     "food_id": "bell-pepper",
+     "qty": 0.5,
+     "unit": "pepper"
+    }
+   ]
+  },
+  {
+   "id": "apple-and-cheddar",
+   "name": "Apple and cheddar",
+   "meal_type": "snack",
+   "portable": true,
+   "batch": false,
+   "instructions": "A sliced apple with an ounce of cheddar.",
+   "ingredients": [
+    {
+     "food_id": "apple",
+     "qty": 1,
+     "unit": "medium"
+    },
+    {
+     "food_id": "cheddar-cheese",
+     "qty": 1,
+     "unit": "oz"
+    }
+   ]
+  },
+  {
+   "id": "greek-yogurt-and-raspberries",
+   "name": "Greek yogurt and raspberries",
+   "meal_type": "snack",
+   "portable": true,
+   "batch": false,
+   "instructions": "Plain full-fat Greek yogurt with raspberries.",
+   "ingredients": [
+    {
+     "food_id": "greek-yogurt-plain-full-fat",
+     "qty": 0.5,
+     "unit": "cup"
+    },
+    {
+     "food_id": "raspberries",
+     "qty": 0.5,
+     "unit": "cup"
+    }
+   ]
+  },
+  {
+   "id": "steak-bites-in-butter",
+   "name": "Steak bites in butter",
+   "meal_type": "lunch",
+   "portable": false,
+   "batch": false,
+   "instructions": "Cut the steak in 1-inch cubes, salt them and sear in a very hot pan 1 minute a side. Add the butter, toss and eat.",
+   "ingredients": [
+    {
+     "food_id": "sirloin-steak",
+     "qty": 6,
+     "unit": "oz"
+    },
+    {
+     "food_id": "butter",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.25,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "cold-salmon-and-eggs",
+   "name": "Cold salmon and eggs",
+   "meal_type": "lunch",
+   "portable": true,
+   "batch": false,
+   "instructions": "Leftover salmon with 2 hard-boiled eggs and salt. Cook an extra fillet at dinner and this lunch is done.",
+   "ingredients": [
+    {
+     "food_id": "salmon-fillet",
+     "qty": 5,
+     "unit": "oz"
+    },
+    {
+     "food_id": "eggs",
+     "qty": 2,
+     "unit": "egg"
+    },
+    {
+     "food_id": "salt",
+     "qty": 0.25,
+     "unit": "tsp"
+    }
+   ]
+  },
+  {
+   "id": "mediterranean-scramble",
+   "name": "Mediterranean scramble",
+   "meal_type": "breakfast",
+   "portable": false,
+   "batch": false,
+   "instructions": "Wilt the spinach and chopped tomato in the olive oil. Add 3 beaten eggs, stir gently until just set, crumble the feta over.",
+   "ingredients": [
+    {
+     "food_id": "eggs",
+     "qty": 3,
+     "unit": "egg"
+    },
+    {
+     "food_id": "spinach",
+     "qty": 1,
+     "unit": "cup"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 2,
+     "unit": "slice"
+    },
+    {
+     "food_id": "feta-cheese",
+     "qty": 1,
+     "unit": "oz"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "shakshuka",
+   "name": "Shakshuka",
+   "meal_type": "breakfast",
+   "portable": false,
+   "batch": false,
+   "instructions": "Soften the onion, pepper and garlic in the oil. Add chopped tomato and simmer 10 minutes into a thick sauce. Make 3 wells, crack in the eggs, cover and cook 5 to 6 minutes until the whites set. Crumble the feta over.",
+   "ingredients": [
+    {
+     "food_id": "eggs",
+     "qty": 3,
+     "unit": "egg"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 4,
+     "unit": "slice"
+    },
+    {
+     "food_id": "bell-pepper",
+     "qty": 0.5,
+     "unit": "pepper"
+    },
+    {
+     "food_id": "onion",
+     "qty": 0.25,
+     "unit": "onion"
+    },
+    {
+     "food_id": "garlic",
+     "qty": 1,
+     "unit": "clove"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "feta-cheese",
+     "qty": 0.5,
+     "unit": "oz"
+    }
+   ]
+  },
+  {
+   "id": "avocado-eggs-and-tomato",
+   "name": "Avocado, eggs and tomato",
+   "meal_type": "breakfast",
+   "portable": true,
+   "batch": false,
+   "instructions": "2 eggs cooked in the olive oil, or hard-boiled to go, with half an avocado and sliced tomato. Salt and pepper.",
+   "ingredients": [
+    {
+     "food_id": "eggs",
+     "qty": 2,
+     "unit": "egg"
+    },
+    {
+     "food_id": "avocado",
+     "qty": 0.5,
+     "unit": "avocado"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 2,
+     "unit": "slice"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 0.5,
+     "unit": "tbsp"
+    }
+   ]
+  },
+  {
+   "id": "chicken-chickpea-spinach-stew",
+   "name": "Chicken, chickpea and spinach stew",
+   "meal_type": "dinner",
+   "portable": true,
+   "batch": true,
+   "instructions": "Brown cubed chicken thighs in the oil with the onion and garlic. Add chopped tomato, the chickpeas and a splash of water and simmer 15 minutes. Stir in the spinach to wilt and top with feta. Doubles well for lunches.",
+   "ingredients": [
+    {
+     "food_id": "chicken-thighs",
+     "qty": 4,
+     "unit": "oz"
+    },
+    {
+     "food_id": "chickpeas",
+     "qty": 0.75,
+     "unit": "cup"
+    },
+    {
+     "food_id": "spinach",
+     "qty": 2,
+     "unit": "cup"
+    },
+    {
+     "food_id": "tomato",
+     "qty": 4,
+     "unit": "slice"
+    },
+    {
+     "food_id": "onion",
+     "qty": 0.25,
+     "unit": "onion"
+    },
+    {
+     "food_id": "garlic",
+     "qty": 2,
+     "unit": "clove"
+    },
+    {
+     "food_id": "olive-oil",
+     "qty": 1,
+     "unit": "tbsp"
+    },
+    {
+     "food_id": "feta-cheese",
+     "qty": 1,
+     "unit": "oz"
     }
    ]
   }

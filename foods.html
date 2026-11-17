@@ -14,16 +14,26 @@
 <link rel="icon" href="icons/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
-<script src="data/library.js?v=3"></script>
+<script src="data/library.js?v=4"></script>
 <script src="js/store.js?v=3"></script>
-<script src="js/engine.js?v=3"></script>
-<script src="js/api.js?v=3"></script>
+<script src="js/engine.js?v=4"></script>
+<script src="js/api.js?v=4"></script>
 <script src="js/app.js?v=3"></script>
 </head>
 <body>
 <main>
   <h1>Food library</h1>
   <div id="msg" class="msg" style="display:none"></div>
+
+  <div class="card" style="margin-bottom:14px">
+    <h2>Your diet</h2>
+    <div class="row" style="align-items:flex-end">
+      <label style="flex:1;min-width:220px">Diet <select id="diet"></select></label>
+      <span class="muted small" id="diet-fits"></span>
+    </div>
+    <p class="small" id="diet-about" style="margin:8px 0 0"></p>
+    <p class="small muted" style="margin:6px 0 0">The diet sets which foods are green, yellow and red below, and so which recipes the planner and the recipe list use. Foods you unlocked or banned yourself stay that way. After a change, make a new week on the Meal plan page.</p>
+  </div>
 
   <div class="tabs">
     <button class="active" data-light="green">Green: eat freely</button>
@@ -81,7 +91,19 @@ async function setLight(id, l) {
   try { await api(`/api/foods/${id}`, { method: "PATCH", body: { light: l } }); if (l === "red") await api(`/api/foods/${id}`, { method: "PATCH", body: { unlocked: false } }); await load(); }
   catch (e) { flash("msg", e.message, "err"); }
 }
-async function load() { foods = await api("/api/foods"); render(); }
+async function loadDiet() {
+  const d = await api("/api/diets"), cur = d.diets.find(x => x.current);
+  el("diet").innerHTML = d.diets.map(x => `<option value="${x.id}" ${x.current ? "selected" : ""}>${esc(x.name)}</option>`).join("");
+  el("diet-about").textContent = cur.about;
+  el("diet-fits").textContent = `${cur.fits} recipes fit`;
+}
+el("diet").addEventListener("change", async () => {
+  try {
+    await api("/api/settings", { method: "PATCH", body: { diet: el("diet").value } });
+    await load(); flash("msg", "Diet set. Make a new week on the Meal plan page to cook from it.");
+  } catch (e) { flash("msg", e.message, "err"); }
+});
+async function load() { foods = await api("/api/foods"); render(); await loadDiet(); }
 document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
   document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("active")); b.classList.add("active"); light = b.dataset.light; render();
 }));

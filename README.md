@@ -23,7 +23,7 @@ A static site on GitHub Pages. Each person's rows live in a Supabase project, an
 | `plan.html` | The week's meals, swaps, away days, build a week from last week's groceries. |
 | `recipes.html` | Every recipe with its macros. |
 | `shopping.html` | The week's list by store section; copy it to paste into Bring! or Notes. |
-| `foods.html` | Green, yellow, red. Unlock a yellow food after testing it; ban one. |
+| `foods.html` | Your diet (low-carb, keto, carnivore, whole-food reset, Mediterranean), then green, yellow, red under it. Unlock a yellow food after testing it; ban one. |
 | `blog.html` | A daily post written from the numbers, with room for your own words; save the whole blog as one page. |
 | `account.html` | Sign in, password, import old data, My Code, download everything, delete the account. |
 

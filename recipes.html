@@ -14,10 +14,10 @@
 <link rel="icon" href="icons/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
-<script src="data/library.js?v=3"></script>
+<script src="data/library.js?v=4"></script>
 <script src="js/store.js?v=3"></script>
-<script src="js/engine.js?v=3"></script>
-<script src="js/api.js?v=3"></script>
+<script src="js/engine.js?v=4"></script>
+<script src="js/api.js?v=4"></script>
 <script src="js/app.js?v=3"></script>
 <style>
   .layout { display: grid; grid-template-columns: 300px 1fr; gap: 14px; align-items: start; }
@@ -45,6 +45,7 @@
   <div class="layout">
     <div class="card rlist" id="list-card">
       <input id="search" placeholder="Search recipes or ingredients" autocomplete="off">
+      <label class="check" style="border:0;padding:6px 0 0;font-size:14px"><input type="checkbox" id="fits-only" checked> <span id="fits-label">Only recipes that fit my diet</span></label>
       <div id="list"></div>
     </div>
     <div class="card recipe" id="detail"><p class="muted">Pick a recipe.</p></div>
@@ -61,11 +62,11 @@ function steps(text) {
 }
 function renderList() {
   const q = el("search").value.trim().toLowerCase();
-  const hit = m => !q || m.name.toLowerCase().includes(q) || m.ingredients.some(i => i.name.toLowerCase().includes(q));
+  const hit = m => (!el("fits-only").checked || m.allowed || (current && current.id === m.id)) && (!q || m.name.toLowerCase().includes(q) || m.ingredients.some(i => i.name.toLowerCase().includes(q)));
   el("list").innerHTML = Object.keys(TYPE_LABEL).map(t => {
     const ms = meals.filter(m => m.meal_type === t && hit(m));
     if (!ms.length) return "";
-    return `<h3>${TYPE_LABEL[t]}</h3>` + ms.map(m => `<a href="?meal=${m.id}" data-id="${m.id}" class="${current && current.id === m.id ? "active" : ""} ${m.enabled ? "" : "muted"}">${esc(m.name)}<span class="muted">${m.nutrition ? m.nutrition.kcal + " kcal" : ""}${m.portable ? " ✈" : ""}</span></a>`).join("");
+    return `<h3>${TYPE_LABEL[t]}</h3>` + ms.map(m => `<a href="?meal=${m.id}" data-id="${m.id}" class="${current && current.id === m.id ? "active" : ""} ${m.enabled && m.allowed ? "" : "muted"}">${esc(m.name)}<span class="muted">${m.nutrition ? m.nutrition.kcal + " kcal" : ""}${m.portable ? " ✈" : ""}</span></a>`).join("");
   }).join("") || `<p class="muted">Nothing matches.</p>`;
 }
 function renderDetail() {
@@ -78,13 +79,13 @@ function renderDetail() {
     <div class="tags">
       <span class="pill ${m.meal_type === "snack" ? "yellow" : "green"}">${TYPE_LABEL[m.meal_type].replace(/s$/, "")}</span>
       ${m.portable ? `<span class="pill green">Portable</span>` : ""}${m.batch ? `<span class="pill yellow">Batch cook</span>` : ""}
-      ${m.locked ? `<span class="pill red">Uses a locked food</span>` : ""}
+      ${m.allowed ? `<span class="pill green">Fits your diet</span>` : `<span class="pill red">Not on your diet</span>`}
       <span style="flex:1"></span>
       <label class="check toggle" style="border:0; padding:0; font-size:14px"><input type="checkbox" ${m.enabled ? "checked" : ""} onchange="toggle(this.checked)"> In the rotation</label>
       <button class="ghost small" onclick="window.print()">Print</button>
     </div>
     <h2>Per serving</h2>
-    <ul class="ing">${m.ingredients.map(i => `<li><span class="q">${qty(i)}</span><span>${esc(i.name)}${i.unlocked ? "" : ` <span class="pill red">locked</span>`}</span></li>`).join("")}</ul>
+    <ul class="ing">${m.ingredients.map(i => `<li><span class="q">${qty(i)}</span><span>${esc(i.name)}${i.light === "red" ? ` <span class="pill red">off your diet</span>` : i.unlocked ? "" : ` <span class="pill yellow">locked</span>`}</span></li>`).join("")}</ul>
     <h2>Method</h2>
     ${m.instructions ? `<ol>${steps(m.instructions).map(s => `<li>${esc(s)}</li>`).join("")}</ol>` : `<p class="muted">No cooking. Put it on a plate.</p>`}
     ${n ? `<h2>Nutrition per serving</h2><div class="nut">
@@ -108,11 +109,14 @@ function pick(id, push) {
 }
 el("list").addEventListener("click", ev => { const a = ev.target.closest("a[data-id]"); if (!a) return; ev.preventDefault(); pick(a.dataset.id, true); });
 el("search").addEventListener("input", renderList);
+el("fits-only").addEventListener("change", renderList);
 window.addEventListener("popstate", () => { const id = new URLSearchParams(location.search).get("meal"); if (id) pick(id, false); else { current = null; el("list-card").classList.remove("hide"); renderList(); renderDetail(); } });
 document.addEventListener("click", ev => { if (ev.target.id === "back") { ev.preventDefault(); current = null; el("list-card").classList.remove("hide"); history.pushState({}, "", "recipes.html"); renderList(); renderDetail(); } });
 (async () => {
-  meals = await api("/api/meals");
-  meals.forEach(m => { m.locked = m.ingredients.some(i => !i.unlocked); });
+  const [list, diets] = await Promise.all([api("/api/meals"), api("/api/diets")]);
+  meals = list;
+  const cur = diets.diets.find(x => x.current);
+  el("fits-label").innerHTML = `Only recipes that fit my diet: ${esc(cur.name)} (<a href="foods.html">change</a>)`;
   const id = new URLSearchParams(location.search).get("meal");
   if (id) pick(id, false); else renderList();
 })().catch(e => flash("msg", e.message, "err"));

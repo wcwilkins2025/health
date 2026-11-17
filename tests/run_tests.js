@@ -20,7 +20,7 @@ async function section(name, fn) { current = name; console.log(name); try { awai
 (async () => {
   await section('1. The library', async () => {
     const ids = new Set(LIB.foods.map(f => f.id));
-    check('122 foods and 49 meals', LIB.foods.length === 122 && LIB.meals.length === 49, [LIB.foods.length, LIB.meals.length]);
+    check('127 foods and 97 meals', LIB.foods.length === 127 && LIB.meals.length === 97, [LIB.foods.length, LIB.meals.length]);
     check('food ids are unique', ids.size === LIB.foods.length);
     check('meal ids are unique', new Set(LIB.meals.map(m => m.id)).size === LIB.meals.length);
     check('every ingredient is a library food', LIB.meals.every(m => m.ingredients.every(i => ids.has(i.food_id))));
@@ -328,6 +328,41 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     after = await api('GET', `/api/shopping?plans=${a.id},${b.id}`);
     check('checked only in one week shows unchecked on the combined list', after.flatMap(g => g.items).find(i => i.food_id === food).checked === 0);
     check('the one-week route still works', (await api('GET', `/api/plans/${a.id}/shopping`)).length > 0);
+  });
+
+  await section('10. Diets', async () => {
+    const { S, api } = fresh();
+    const TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
+    check('low-carb is the default', E.diet(S) === 'lowcarb' && (await api('GET', '/api/diets')).diets.find(d => d.current).id === 'lowcarb');
+    const counts = {};
+    for (const d of E.DIETS) {
+      await api('PATCH', '/api/settings', { diet: d.id });
+      const ok = E.allowedMeals(S);
+      counts[d.id] = Object.fromEntries(TYPES.map(t => [t, ok.filter(m => m.meal_type === t).length]));
+      check(`${d.name}: at least 4 of every meal type`, TYPES.every(t => counts[d.id][t] >= 4), counts[d.id]);
+      const plan = await api('POST', '/api/plans', { week_start: '2026-11-16', replace: true });
+      check(`${d.name}: a full week plans with no empty slots`, plan.days.every(x => x.slots.every(sl => sl.meal_id)), plan.days.map(x => x.slots.filter(sl => !sl.meal_id).map(sl => sl.slot)));
+      const fm = E.foodMap(S), mm = E.mealMap(S);
+      check(`${d.name}: every planned food is allowed`, plan.days.every(x => x.slots.every(sl => mm[sl.meal_id].ingredients.every(i => fm[i.food_id].light !== 'red' && fm[i.food_id].unlocked))));
+    }
+    await api('PATCH', '/api/settings', { diet: 'carnivore' });
+    let fm = E.foodMap(S);
+    check('carnivore: steak and eggs green, broccoli and rice red', fm['sirloin-steak'].light === 'green' && fm.eggs.light === 'green' && fm.broccoli.light === 'red' && fm['white-rice'].light === 'red');
+    await api('PATCH', '/api/settings', { diet: 'clean' });
+    fm = E.foodMap(S);
+    check('whole-food reset: rice, potatoes, fruit in; mayo, deli ham, diet soda out', fm['white-rice'].light === 'green' && fm.potatoes.light === 'green' && fm.banana.light === 'green' && fm.mayonnaise.light === 'red' && fm['deli-ham'].light === 'red' && fm['diet-soda'].light === 'red');
+    await api('PATCH', '/api/settings', { diet: 'keto' });
+    const macros = E.mealMacros(S);
+    check('keto: every meal under 10 g net carbs, snacks under 5', E.allowedMeals(S).every(m => macros[m.id].carbs <= (m.meal_type === 'snack' ? 5 : 10)));
+    await api('PATCH', '/api/settings', { diet: 'mediterranean' });
+    fm = E.foodMap(S);
+    check('Mediterranean: red meat starts locked; fish, beans and rice in; salami out', fm['sirloin-steak'].light === 'yellow' && !fm['sirloin-steak'].unlocked && fm['salmon-fillet'].light === 'green' && fm.beans.light === 'green' && fm['white-rice'].light === 'green' && fm.salami.light === 'red');
+    await api('PATCH', '/api/foods/sirloin-steak', { unlocked: true });
+    check('your own unlock still wins under a diet', E.foodMap(S)['sirloin-steak'].unlocked === true);
+    const meals = await api('GET', '/api/meals');
+    check('the recipe list says which fit', meals.some(m => m.allowed) && meals.some(m => !m.allowed) && meals.find(m => m.id === 'cod-with-tomatoes-and-olives').allowed);
+    await api('PATCH', '/api/settings', { diet: 'nonsense' });
+    check('an unknown diet falls back to low-carb', E.diet(S) === 'lowcarb');
   });
 
   console.log(failures ? `\n${failures} FAILED` : '\nAll checks pass.');
