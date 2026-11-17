@@ -34,6 +34,23 @@ The free tier's mailer sends a few emails an hour, enough for a small group. For
 
 Training → **Import from Gym ACE** → pick the GymACE.db file (on Windows it is in `%LOCALAPPDATA%\Packages\16549Appatary.GymACE_*\LocalState\`). New sets are added, edited ones updated, deleted ones removed. Sets logged in the app are never touched. The file is read in the browser; only the rows are saved.
 
+## 5. The AI: coach, My Code builder, kitchen helper
+
+The AI runs in a Supabase Edge Function, `supabase/functions/ai`, so the key never reaches a browser.
+
+1. Run `supabase/schema.sql` again (it adds the AI and kitchen tables; nothing existing is touched).
+2. Deploy the function, from a terminal in this folder:
+   ```
+   npx supabase login
+   npx supabase functions deploy ai --project-ref YOUR-PROJECT-REF
+   ```
+   The project ref is the part of the Project URL before `.supabase.co`.
+3. Sign in to the app and open **AI setup** (`ai-setup.html`). The first person to open it becomes the app's owner.
+4. Quick setup: press one of the Get a key buttons, create a key there, paste it, press **Set it up**. The app recognizes the provider (Claude, Grok, Groq, Gemini or OpenAI), picks a low-cost model and tests it.
+5. Keeping the cost down: the quality setting starts at Lowest cost, and each person is limited to 25 AI messages a day (the owner is not). Both are on the same page, with this month's use.
+
+Groq and Gemini can be tried for free. Claude gives the best coaching; on the lowest tier (Claude Haiku) a month of daily use by one person is a few cents to a dollar or two.
+
 ## After an update
 
 When a change adds a table (the daily check-in did), open **SQL Editor**, paste all of `supabase/schema.sql` again and press **Run**. It only adds what is missing; nothing that is there is touched.

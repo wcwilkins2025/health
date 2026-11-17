@@ -10,6 +10,8 @@ A static site on GitHub Pages. Each person's rows live in a Supabase project, an
 
 `config.js` holds the Supabase project URL and the publishable key, which are made to be public. The secret key is never in this repo.
 
+The AI runs in a Supabase Edge Function (`supabase/functions/ai`): `core.js` holds the providers, the three conversations and the turn loop (tested in node), `index.ts` checks the person, enforces the daily limit and keeps the key in a table no browser can read.
+
 ## Pages
 
 | Page | What it does |
@@ -25,6 +27,10 @@ A static site on GitHub Pages. Each person's rows live in a Supabase project, an
 | `shopping.html` | The week's list by store section; copy it to paste into Bring! or Notes. |
 | `foods.html` | Your diet (low-carb, keto, carnivore, whole-food reset, Mediterranean), then green, yellow, red under it. Unlock a yellow food after testing it; ban one. |
 | `blog.html` | A daily post written from the numbers, with room for your own words; save the whole blog as one page. |
+| `coach.html` | The coach: a conversation about your own numbers; suggestions come as cards you apply or dismiss. |
+| `kitchen.html` | The kitchen helper interviews you about likes and dislikes and writes recipes for your diet; tick what's on hand to get recipes or a week's plan from it. |
+| `code-builder.html` | Builds your My Code in an interview, in your own words. |
+| `ai-setup.html` | The owner picks the AI (Claude, Grok, Groq, Gemini, OpenAI), pastes a key, sets the cost tier and daily limit. |
 | `account.html` | Sign in, password, import old data, My Code, download everything, delete the account. |
 
 ## Running it

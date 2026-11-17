@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI setup · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=5">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=5"></script>
+<script src="js/store.js?v=5"></script>
+<script src="js/engine.js?v=5"></script>
+<script src="js/api.js?v=5"></script>
+<script src="js/app.js?v=5"></script>
+</head>
+<body>
+<main class="coach-main">
+  <h1>AI setup</h1>
+  <div id="msg" class="msg" style="display:none"></div>
+  <div class="card" id="note" style="display:none"></div>
+
+  <div id="owner" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <p style="margin:0" id="current"></p>
+      <p class="small muted" style="margin:8px 0 0">One AI serves the coach, the My Code builder and the kitchen helper for everyone using the app, and its cost lands on the key you add here. The key is kept in the app's Supabase project, out of reach of every browser, and is never shown again.</p>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <h2>Quick setup</h2>
+      <p class="small" style="margin:0 0 10px"><strong>1.</strong> Get a key from one of these (each opens in a new tab: sign in, create a key, copy it):</p>
+      <div class="getkey">
+        <a class="btn" href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq<small>free to start</small></a>
+        <a class="btn" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Gemini<small>free to start</small></a>
+        <a class="btn" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Claude<small>best coaching, low cost</small></a>
+        <a class="btn" href="https://console.x.ai" target="_blank" rel="noopener">Grok<small>xAI</small></a>
+        <a class="btn" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI<small>ChatGPT models</small></a>
+      </div>
+      <form id="quick" style="margin-top:12px" autocomplete="off">
+        <p class="small" style="margin:0 0 6px"><strong>2.</strong> Paste the key. The app works out which one it is, picks a low-cost model and tests it.</p>
+        <div style="display:flex;gap:8px"><input type="password" id="qkey" autocomplete="new-password" spellcheck="false" placeholder="paste the key" style="flex:1"><button type="submit" id="qgo">Set it up</button></div>
+      </form>
+      <p class="small" id="qout" style="margin:8px 0 0"></p>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <h2>Keeping the cost down</h2>
+      <div class="row" style="align-items:flex-end">
+        <label>Quality and cost <select id="tier"></select></label>
+        <label>Messages per person a day <input type="number" id="limit" min="0" max="1000" step="1" style="width:100px"></label>
+      </div>
+      <p class="small muted" style="margin:8px 0 0">Lowest cost picks the provider's cheapest capable model (for Claude, Haiku). Replies are kept short and only the last few messages go with each one. You are never limited yourself; 0 means no limit for anyone.</p>
+      <p class="small" id="usage" style="margin:8px 0 0"></p>
+    </div>
+
+    <details class="card" style="margin-bottom:14px">
+      <summary style="cursor:pointer"><h2 style="display:inline">Advanced</h2> <span class="muted small">every provider, steps, the exact model</span></summary>
+      <div id="providers" class="providers" style="margin-top:10px"></div>
+      <div id="detail" style="margin-top:14px"></div>
+    </details>
+  </div>
+</main>
+<script>
+let P = null, sel = null;
+const call = body => HT.aiCall(body);
+function prov(id) { return P.providers.find(p => p.id === id); }
+function render() {
+  el("current").innerHTML = P.configured ? `In use now: <strong>${esc(P.provider_name)}</strong>, model <strong>${esc(P.model)}</strong>.` : `<strong>Not set up yet.</strong> The coach, the builder and the kitchen helper are off until a provider has a key.`;
+  el("tier").innerHTML = Object.entries(P.tiers).map(([k, v]) => `<option value="${k}" ${P.tier === k ? "selected" : ""}>${esc(v)}</option>`).join("");
+  el("limit").value = P.daily_limit;
+  const u = P.usage;
+  el("usage").textContent = u && u.requests ? `This month: ${u.requests} requests, ${(u.tokens_in + u.tokens_out).toLocaleString()} tokens${u.priced ? `, about $${u.dollars.toFixed(2)}` : " (see the provider's console for the cost)"}.` : "No AI use this month yet.";
+  el("providers").innerHTML = P.providers.map(p => `<label class="prov ${sel === p.id ? "on" : ""}"><input type="radio" name="prov" ${sel === p.id ? "checked" : ""} onchange="pick('${p.id}')">
+    <span><strong>${esc(p.name)}</strong>${P.provider === p.id && P.configured ? ` <span class="pill green">in use</span>` : ""}${p.has_key ? ` <span class="pill">key saved</span>` : ""}
+    <span class="small muted" style="display:block">${esc(p.note)}</span></span></label>`).join("");
+  const p = prov(sel);
+  el("detail").innerHTML = `<h2>${esc(p.name)}</h2><p class="small" style="margin:0 0 8px"><a href="${esc(p.key_url)}" target="_blank" rel="noopener">Open ${esc(p.where)}</a></p>
+    <ol class="small" style="margin:0 0 10px;padding-left:20px">${p.steps.map(s => `<li>${esc(s)}</li>`).join("")}</ol>
+    <form id="f" class="ai-form" autocomplete="off">
+      <label>API key ${p.has_key ? `<span class="muted small">(saved: ${esc(p.key_hint)}; leave empty to keep it)</span>` : ""}<input type="password" id="key" autocomplete="new-password" spellcheck="false" placeholder="${p.has_key ? "unchanged" : "paste the key"}"></label>
+      <label>Model <span style="display:flex;gap:6px"><input id="model" list="models" value="${esc(p.model)}" spellcheck="false" style="flex:1"><button type="button" class="ghost small" id="load">Load models</button></span></label>
+      <datalist id="models"></datalist>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="submit">Save and use ${esc(p.name)}</button><button type="button" class="ghost" id="test">Test it</button>
+      ${p.has_key ? `<button type="button" class="small danger" id="forget">Remove key</button>` : ""}</div>
+      <p class="small" id="test-out" style="margin:8px 0 0"></p>
+    </form>`;
+  el("f").addEventListener("submit", ev => { ev.preventDefault(); save(); });
+  el("load").addEventListener("click", loadModels);
+  el("test").addEventListener("click", test);
+  if (el("forget")) el("forget").addEventListener("click", async () => { if (confirm("Remove the saved key for this provider?")) { P = await call({ action: "admin_update", provider: sel, clear_key: true }); render(); } });
+}
+function pick(id) { sel = id; render(); }
+async function save() {
+  const body = { action: "admin_update", provider: sel, model: el("model").value.trim() };
+  if (el("key").value.trim()) body.key = el("key").value.trim();
+  try { P = await call(body); render(); flash("msg", P.configured ? `Saved. ${P.provider_name} is in use.` : "Saved. Add a key to turn it on."); return true; }
+  catch (e) { flash("msg", e.message, "err"); return false; }
+}
+async function loadModels() {
+  if (el("key").value.trim() && !(await save())) return;
+  try { const r = await call({ action: "admin_models", provider: sel }); el("models").innerHTML = r.models.map(m => `<option value="${esc(m)}">`).join(""); flash("msg", `${r.models.length} models. Click the Model box to pick one, then Save.`); el("model").focus(); }
+  catch (e) { flash("msg", e.message, "err"); }
+}
+async function test() {
+  if (!(await save())) return;
+  el("test-out").textContent = "Asking…";
+  try { const r = await call({ action: "admin_test" }); el("test-out").textContent = r.ok ? `Works. It said: "${r.reply}"` : "It answered with nothing; try another model."; }
+  catch (e) { el("test-out").textContent = ""; flash("msg", e.message, "err"); }
+}
+el("quick").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const key = el("qkey").value.trim();
+  if (!key) { flash("msg", "Paste the key first.", "err"); return; }
+  el("qgo").disabled = true; el("qout").textContent = "Setting up and testing…";
+  try {
+    P = await call({ action: "admin_quick", key }); el("qkey").value = ""; sel = P.provider; render();
+    el("qout").innerHTML = P.test.ok ? `<span class="pill green">Ready</span> ${esc(P.provider_name)}, model ${esc(P.model)}. It said: "${esc(P.test.reply)}"` : `Saved ${esc(P.provider_name)}, but the test came back empty. Try another model under Advanced.`;
+  } catch (e) { el("qout").textContent = ""; flash("msg", e.message, "err"); }
+  el("qgo").disabled = false;
+});
+async function costs(body) { try { P = await call(Object.assign({ action: "admin_costs" }, body)); render(); flash("msg", "Saved."); } catch (e) { flash("msg", e.message, "err"); } }
+el("tier").addEventListener("change", () => costs({ tier: el("tier").value }));
+el("limit").addEventListener("change", () => costs({ daily_limit: Math.max(0, Math.round(+el("limit").value || 0)) }));
+(async () => {
+  await HT.ready;
+  if (!HT.aiCall) { el("note").style.display = ""; el("note").innerHTML = "<p style='margin:0'>AI setup works once the app is connected to its Supabase project and the <code>ai</code> function is deployed (docs/SETUP.md). The local preview has no AI.</p>"; return; }
+  try { P = await call({ action: "admin_get" }); }
+  catch (e) {
+    el("note").style.display = "";
+    el("note").innerHTML = e.status === 403 ? "<p style='margin:0'>The app's owner sets up the AI once for everyone. You don't need to do anything here.</p>" : `<p style='margin:0'>${esc(e.message)}</p>`;
+    return;
+  }
+  sel = P.provider; el("owner").style.display = ""; render();
+})().catch(e => flash("msg", e.message, "err"));
+</script>
+</body>
+</html>

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Code builder · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=5">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=5"></script>
+<script src="js/store.js?v=5"></script>
+<script src="js/engine.js?v=5"></script>
+<script src="js/api.js?v=5"></script>
+<script src="js/app.js?v=5"></script>
+<script src="js/chat.js?v=5"></script>
+</head>
+<body>
+<main class="coach-main">
+  <h1>My Code builder <button type="button" class="ghost small" id="clear" style="vertical-align:middle;margin-left:8px">Start over</button></h1>
+  <div id="msg" class="msg" style="display:none"></div>
+  <div class="card" id="setup" style="display:none;margin-bottom:14px"></div>
+  <div class="card" id="intro" style="margin-bottom:14px">
+    <h2>What this is</h2>
+    <p class="small" style="margin:0">Your code is one page of reasons and rules you live by while you do this: why you started, what you're done with, how you eat and move, what you do on a bad day. The builder asks one question at a time and writes it in your words. Change anything, then make it your code.</p>
+  </div>
+  <div id="chat" class="chat"></div>
+  <div id="thinking" class="coach-thinking" style="display:none">Thinking…</div>
+  <div class="starters" id="starters"></div>
+  <form id="form" class="coach-form">
+    <textarea id="text" rows="2" placeholder="Answer, or tell it what to change" maxlength="4000"></textarea>
+    <button type="submit" id="send">Send</button>
+  </form>
+  <div class="card" id="draft-card" style="display:none;margin-top:14px">
+    <h2>Draft</h2>
+    <div id="draft" class="code-draft"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center">
+      <button type="button" id="save">Make this my code</button>
+      <a href="code.html" id="view" style="display:none">See my code</a>
+      <span class="small muted" id="saved-note"></span>
+    </div>
+  </div>
+</main>
+<script>
+function codeHtml(c) {
+  return `${c.eyebrow ? `<div class="eyebrow">${esc(c.eyebrow)}</div>` : ""}<div class="title">${esc(c.title)}</div>` +
+    c.sections.map(s => `<section><h3>${esc(s.heading)}</h3><p class="lead">${esc(s.lead)}</p>${s.lines.map(l => `<p>${esc(l)}</p>`).join("")}</section>`).join("");
+}
+HT.chat({ kind: "mycode", who: "Builder", starters: ["Help me write my code."], onState: st => {
+  el("intro").style.display = st.messages.length ? "none" : "";
+  const d = st.draft, same = d && st.code && JSON.stringify(d) === JSON.stringify(st.code);
+  el("draft-card").style.display = d || st.code ? "" : "none";
+  el("draft").innerHTML = d ? codeHtml(d) : st.code ? codeHtml(st.code) : "";
+  el("save").style.display = d && !same ? "" : "none";
+  el("view").style.display = st.code ? "" : "none";
+  el("saved-note").textContent = st.code ? (same || !d ? `This is your code, saved ${st.saved_at}.` : "This draft replaces your saved code when you make it yours.") : "";
+} });
+el("save").addEventListener("click", async () => {
+  try { await api("/api/mycode/save", { method: "POST" }); await HT.chatLoad(); flash("msg", "This is your code now. It's on the My Code page."); } catch (e) { flash("msg", e.message, "err"); }
+});
+el("clear").addEventListener("click", () => { if (confirm("Start the interview over? A code you already saved stays.")) HT.chatClear(); });
+</script>
+</body>
+</html>

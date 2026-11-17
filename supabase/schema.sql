@@ -107,11 +107,77 @@ create table if not exists public.checkins (
   primary key (user_id, date)
 );
 
+-- The AI conversations (coach, mycode, kitchen) and the cards they offer (a setting change, a recipe...).
+create table if not exists public.ai_messages (
+  id         bigint generated always as identity primary key,
+  user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  kind       text not null,
+  created_at timestamptz not null default now(),
+  role       text not null,              -- user | assistant
+  content    text not null
+);
+create index if not exists ai_messages_user_kind on public.ai_messages (user_id, kind, id);
+
+create table if not exists public.ai_cards (
+  id         bigint generated always as identity primary key,
+  user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  kind       text not null,
+  message_id bigint,
+  created_at timestamptz not null default now(),
+  tool       text not null,
+  data       jsonb not null default '{}'::jsonb,
+  status     text not null default 'open'  -- open | applied | dismissed
+);
+
+-- Recipes a person added (from the kitchen helper or by hand): {name, meal_type, portable, batch, instructions, ingredients}.
+create table if not exists public.meals_custom (
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  meal_id text not null,
+  data    jsonb not null default '{}'::jsonb,
+  primary key (user_id, meal_id)
+);
+
+-- What is in the kitchen right now.
+create table if not exists public.pantry (
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  food_id text not null,
+  primary key (user_id, food_id)
+);
+
+-- ---------- the AI service's own tables: no browser reads or writes them; only the ai function (service role) ----------
+create table if not exists public.ai_config (
+  id         int primary key check (id = 1),
+  data       jsonb not null default '{}'::jsonb,   -- provider, models, keys, tier, daily_limit
+  updated_at timestamptz not null default now()
+);
+create table if not exists public.app_owners (
+  user_id uuid primary key references auth.users (id) on delete cascade
+);
+create table if not exists public.ai_usage (
+  id         bigint generated always as identity primary key,
+  user_id    uuid references auth.users (id) on delete cascade,
+  at         timestamptz not null default now(),
+  kind       text not null,
+  provider   text not null,
+  model      text not null,
+  tokens_in  int not null default 0,
+  tokens_out int not null default 0
+);
+create index if not exists ai_usage_user_at on public.ai_usage (user_id, at);
+do $$
+declare t text;
+begin
+  foreach t in array array['ai_config', 'app_owners', 'ai_usage'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('revoke all on public.%I from anon, authenticated', t);
+  end loop;
+end $$;
+
 -- ---------- each person's rows are their own ----------
 do $$
 declare t text;
 begin
-  foreach t in array array['settings', 'weight_log', 'bp_log', 'foods_custom', 'meal_prefs', 'plans', 'gym_sets', 'gym_workouts', 'blog_posts', 'checkins'] loop
+  foreach t in array array['settings', 'weight_log', 'bp_log', 'foods_custom', 'meal_prefs', 'plans', 'gym_sets', 'gym_workouts', 'blog_posts', 'checkins', 'ai_messages', 'ai_cards', 'meals_custom', 'pantry'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from anon', t);
     execute format('grant select, insert, update, delete on public.%I to authenticated', t);

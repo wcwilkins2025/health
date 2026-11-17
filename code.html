@@ -4,28 +4,40 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My Code · Weight Target</title>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#7a4219">
 <link rel="icon" href="icons/icon-192.png">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
-<script src="data/library.js?v=4"></script>
-<script src="js/store.js?v=3"></script>
-<script src="js/engine.js?v=4"></script>
-<script src="js/api.js?v=4"></script>
-<script src="js/app.js?v=3"></script>
+<script src="data/library.js?v=5"></script>
+<script src="js/store.js?v=5"></script>
+<script src="js/engine.js?v=5"></script>
+<script src="js/api.js?v=5"></script>
+<script src="js/app.js?v=5"></script>
 </head>
 <body>
 <main>
   <div id="msg" class="msg" style="display:none"></div>
-  <div id="empty" class="card" style="display:none">No code saved yet. Put yours on the <a href="account.html">Account page</a>: your own words about why you are doing this, kept with your account and shown only to you.</div>
+  <div id="empty" class="card" style="display:none">No code yet. <a href="code-builder.html">Write yours with the builder</a>: it asks a few questions and puts your reasons and rules on one page, in your own words. Already have one written? Paste it on the <a href="account.html">Account page</a>.</div>
+  <p class="small" id="edit" style="display:none;margin:0 0 8px"><a href="code-builder.html">Change it in the builder</a></p>
   <iframe id="frame" title="My Code" sandbox="allow-same-origin" style="display:none;width:100%;border:0;min-height:80vh;background:var(--card)"></iframe>
   <div id="text" class="card" style="display:none;white-space:pre-wrap"></div>
 </main>
 <script>
+const SHEET_CSS = "\n  /* A single framed sheet: letter portrait, ink on paper, condensed caps for section marks, serif for the words. */\n  :root {\n    --paper: #fbfaf6;\n    --ink: #1c1f22;\n    --muted: #5a5f64;\n    --rule: #b8b2a4;\n    --accent: #7a4219;\n    --display: \"Barlow Condensed\", \"Arial Narrow\", Impact, sans-serif;\n    --serif: \"Source Serif 4\", Georgia, \"Times New Roman\", serif;\n  }\n  * { box-sizing: border-box; }\n  html, body { margin: 0; background: #d9d5cc; color: var(--ink); font-family: var(--serif); }\n  .sheet {\n    background: var(--paper); width: 8.5in; min-height: 11in; margin: 24px auto; padding: 0.7in 0.75in 0.6in;\n    box-shadow: 0 10px 40px rgba(0,0,0,.25); display: flex; flex-direction: column;\n  }\n  .hint { text-align: center; font-family: var(--display); font-size: 14px; letter-spacing: .08em; text-transform: uppercase; color: #4a4f54; padding: 10px; }\n  .hint button { font: inherit; letter-spacing: inherit; text-transform: inherit; background: var(--accent); color: #fff; border: 0; padding: 8px 16px; border-radius: 4px; cursor: pointer; margin-left: 10px; }\n\n  header { text-align: center; border-bottom: 2px solid var(--ink); padding-bottom: 12px; margin-bottom: 18px; }\n  .eyebrow { font-family: var(--display); font-weight: 600; font-size: 11pt; letter-spacing: .28em; text-transform: uppercase; color: var(--accent); margin: 0 0 4px; }\n  h1 { font-family: var(--display); font-weight: 700; font-size: 44pt; line-height: .9; letter-spacing: .04em; text-transform: uppercase; margin: 0; }\n\n  .cols { columns: 2; column-gap: 0.45in; column-rule: 1px solid var(--rule); flex: 1; }\n  section { break-inside: avoid; margin: 0 0 11pt; }\n  h2 { font-family: var(--display); font-weight: 700; font-size: 13pt; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin: 0 0 3pt; padding-bottom: 2pt; border-bottom: 1px solid var(--rule); }\n  p { margin: 0 0 4.5pt; font-size: 9.6pt; line-height: 1.32; text-wrap: pretty; }\n  p.lead { font-size: 10.6pt; font-weight: 600; }\n  em { font-style: italic; }\n\n  footer { border-top: 2px solid var(--ink); margin-top: 12px; padding-top: 10px; display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; }\n  .sig { flex: 1; }\n  .sig .line { border-bottom: 1px solid var(--ink); height: 26px; }\n  .sig .lab { font-family: var(--display); font-size: 9pt; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }\n  .date { font-family: var(--display); font-size: 10pt; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }\n\n  @page { size: letter portrait; margin: 0; }\n  @media print {\n    html, body { background: #fff; }\n    .hint { display: none; }\n    .sheet { width: 8.5in; height: 11in; min-height: 0; margin: 0; box-shadow: none; padding: 0.65in 0.7in 0.55in; }\n    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }\n  }\n  @media (max-width: 900px) {\n    .sheet { width: auto; min-height: 0; margin: 0; padding: 28px 20px; }\n    .cols { columns: 1; }\n    h1 { font-size: 38pt; }\n  }\n";   // the framed-sheet look: design only
 HT.ready.then(S => {
-  const code = HT.E.get(S, "my_code");
+  const code = HT.E.get(S, "my_code"), built = HT.E.get(S, "my_code_json");
+  if (!code && built) {   // a code made with the builder, on the framed sheet
+    const c = JSON.parse(built), e = esc, when = HT.E.get(S, "my_code_saved_at");
+    const page = `<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap"><style>${SHEET_CSS}</style></head><body>
+      <div class="sheet"><header>${c.eyebrow ? `<p class="eyebrow">${e(c.eyebrow)}</p>` : ""}<h1>${e(c.title)}</h1></header>
+      <div class="cols">${c.sections.map(s => `<section><h2>${e(s.heading)}</h2><p class="lead">${e(s.lead)}</p>${s.lines.map(l => `<p>${e(l)}</p>`).join("")}</section>`).join("")}</div>
+      <footer><div class="sig"><div class="line"></div><div class="lab">Signed</div></div><div class="date">${e(when ? fmtDate(when) : "")}</div></footer></div></body></html>`;
+    const f = el("frame"); f.srcdoc = page; f.style.display = ""; el("edit").style.display = "";
+    f.addEventListener("load", () => { try { f.style.height = (f.contentDocument.documentElement.scrollHeight + 20) + "px"; } catch (err) {} });
+    return;
+  }
   if (!code) { el("empty").style.display = ""; return; }
   if (/<(html|body|div|p|h1)[\s>]/i.test(code)) {
     const f = el("frame"); f.srcdoc = code; f.style.display = "";

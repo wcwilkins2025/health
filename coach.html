@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coach · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=5">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=5"></script>
+<script src="js/store.js?v=5"></script>
+<script src="js/engine.js?v=5"></script>
+<script src="js/api.js?v=5"></script>
+<script src="js/app.js?v=5"></script>
+<script src="js/chat.js?v=5"></script>
+</head>
+<body>
+<main class="coach-main">
+  <h1>Coach <button type="button" class="ghost small" id="clear" style="vertical-align:middle;margin-left:8px">New conversation</button></h1>
+  <div id="msg" class="msg" style="display:none"></div>
+  <div class="card" id="setup" style="display:none;margin-bottom:14px"></div>
+  <div id="chat" class="chat"></div>
+  <div id="thinking" class="coach-thinking" style="display:none">Thinking…</div>
+  <div class="starters" id="starters"></div>
+  <form id="form" class="coach-form">
+    <textarea id="text" rows="2" placeholder="Ask the coach, or answer it" maxlength="4000"></textarea>
+    <button type="submit" id="send">Send</button>
+  </form>
+  <p class="small muted" style="margin:8px 0 0">An automated coach that reads your weigh-ins, forecast, blood pressure, check-ins, workouts, meal plan, diet and notes. It suggests; you decide. Medicine and blood pressure questions go to your doctor.</p>
+</main>
+<script>
+HT.chat({ kind: "coach", who: "Coach", appliedText: "Applied.", empty: "Start with one of the questions below, or ask anything about your numbers, meals or training.",
+  starters: ["How am I doing?", "What should I focus on this week?", "I keep eating after dinner. What can I change?", "Is my calorie target right?"] });
+el("clear").addEventListener("click", () => { if (confirm("Start a new conversation? Settings you applied stay.")) HT.chatClear(); });
+</script>
+</body>
+</html>

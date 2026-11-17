@@ -188,7 +188,11 @@
     var ws = b.week_start || E.todayStr();
     E.parse(ws);
     var pantry = null;
-    if (b.pantry_from) {
+    if (b.pantry_from === 'kitchen') {
+      pantry = E.pantry(S);
+      if (!pantry.size) throw E.bad('Tick what you have on the Kitchen page first', 409);
+      E.STAPLES.forEach(function (f) { pantry.add(f); });
+    } else if (b.pantry_from) {
       pantry = E.planFoods(S, b.pantry_from);
       if (!pantry.size) throw E.bad('that plan has no meals to take a pantry from', 404);
     }
@@ -261,6 +265,82 @@
   on('DELETE', '/api/checkins/{ds}', async function (S, p) { await S.remove('checkins', { date: p.ds }); return E.checkinStats(S, p.ds); });
   on('GET', '/api/goals', function (S) { return { water_oz: E.waterGoal(S), protein_g: E.proteinGoal(S) }; });
 
+  // ---------- the kitchen: likes, on hand, recipes ----------
+  on('GET', '/api/kitchen', function (S) {
+    var fm = E.foodMap(S), prefs = E.prefs(S);
+    return { prefs: Object.keys(prefs).map(function (k) { return { food_id: k, name: (fm[k] || {}).name || k, choice: prefs[k] }; }),
+      pantry: Array.from(E.pantry(S)), staples: E.STAPLES, custom_meals: E.meals(S).filter(function (m) { return m.custom; }).map(function (m) { return { id: m.id, name: m.name, meal_type: m.meal_type }; }) };
+  });
+  on('PUT', '/api/kitchen/prefs/{food}', async function (S, p, b) { await E.setPref(S, p.food, b.choice); return HT.route(S, 'GET', '/api/kitchen'); });
+  on('PUT', '/api/kitchen/pantry/{food}', async function (S, p, b) { await E.setPantry(S, p.food, !!b.on); return HT.route(S, 'GET', '/api/kitchen'); });
+  on('DELETE', '/api/kitchen/pantry', async function (S) { await S.remove('pantry', {}); return HT.route(S, 'GET', '/api/kitchen'); });
+  on('POST', '/api/meals/custom', async function (S, p, b) { var m = await E.addCustomMeal(S, b); return { id: m.id, name: m.name, meal_type: m.meal_type }; });
+  on('DELETE', '/api/meals/custom/{id}', async function (S, p) {
+    if (!S.db.meals_custom.some(function (r) { return r.meal_id === p.id; })) throw E.bad('No such recipe', 404);
+    await S.remove('meals_custom', { meal_id: p.id }); return { ok: true };
+  });
+
+  // ---------- the AI conversations: coach, mycode (My Code builder), kitchen ----------
+  var AI_KINDS = ['coach', 'mycode', 'kitchen'];
+  function aiState(S, kind) {
+    var msgs = S.db.ai_messages.filter(function (m) { return m.kind === kind; }).sort(function (a, b) { return a.id - b.id; }).slice(-200);
+    var cards = S.db.ai_cards.filter(function (c) { return c.kind === kind; });
+    var cur = {}; Object.keys(E.DEFAULTS).forEach(function (k) { cur[k] = E.get(S, k); });
+    return { kind: kind, messages: msgs.map(function (m) {
+      return Object.assign({}, m, { cards: cards.filter(function (c) { return c.message_id === m.id; }).map(function (c) { return Object.assign({}, c, { current: c.tool === 'suggest_change' ? cur[c.data.setting] : undefined }); }) });
+    }), draft: kind === 'mycode' && E.get(S, 'my_code_draft') ? JSON.parse(E.get(S, 'my_code_draft')) : null,
+      code: kind === 'mycode' && E.get(S, 'my_code_json') ? JSON.parse(E.get(S, 'my_code_json')) : null, saved_at: E.get(S, 'my_code_saved_at') };
+  }
+  on('GET', '/api/ai/{kind}', function (S, p) { if (AI_KINDS.indexOf(p.kind) < 0) throw E.bad('Not found', 404); return aiState(S, p.kind); });
+  on('POST', '/api/ai/{kind}', async function (S, p, b) {
+    var kind = p.kind, text = String(b.message || '').trim();
+    if (AI_KINDS.indexOf(kind) < 0) throw E.bad('Not found', 404);
+    if (!text) throw E.bad('Say something first.', 422);
+    if (!HT.aiCall) throw E.bad('AI needs the app to be signed in to its Supabase project.', 503);
+    var past = S.db.ai_messages.filter(function (m) { return m.kind === kind; }).sort(function (a, b2) { return a.id - b2.id; }).slice(-11)
+      .map(function (m) { return { role: m.role, content: m.content }; }).concat([{ role: 'user', content: text }]);
+    var body = { action: 'chat', kind: kind, history: past, today: E.todayStr(),
+      context: kind === 'coach' ? E.coachContext(S) : kind === 'kitchen' ? E.kitchenContext(S) : E.codeContext(S) };
+    if (kind === 'kitchen') Object.assign(body, E.kitchenIds(S));
+    var res = await HT.aiCall(body);   // throws with the service's message on failure; nothing is stored then
+    await S.insert('ai_messages', { kind: kind, created_at: new Date().toISOString(), role: 'user', content: text });
+    var replies = res.replies || [];
+    if (res.refused) replies.push("I can't help with that one.");
+    var mine = await S.insert('ai_messages', { kind: kind, created_at: new Date().toISOString(), role: 'assistant', content: replies.join('\n\n') || 'Tell me a little more.' });
+    for (var i = 0; i < (res.cards || []).length; i++) {
+      var c = res.cards[i];
+      if (c.tool === 'write_code') { await E.set(S, 'my_code_draft', JSON.stringify(c.input)); continue; }
+      var status = 'open';
+      if (c.tool === 'set_food_preference') { try { await E.setPref(S, c.input.food_id, c.input.choice); status = 'applied'; } catch (e) { continue; } }
+      await S.insert('ai_cards', { kind: kind, message_id: mine.id, created_at: new Date().toISOString(), tool: c.tool, data: c.input, status: status });
+    }
+    return aiState(S, kind);
+  });
+  on('POST', '/api/ai/cards/{id}/{action}', async function (S, p) {
+    var c = S.db.ai_cards.find(function (x) { return String(x.id) === String(p.id); });
+    if (!c) throw E.bad('No such card', 404);
+    if (c.status !== 'open') throw E.bad('That one was already ' + c.status + '.', 409);
+    if (p.action === 'apply') {
+      if (c.tool === 'suggest_change') await E.set(S, c.data.setting, c.data.value);
+      else if (c.tool === 'create_recipe') await E.addCustomMeal(S, c.data);
+      else throw E.bad('Nothing to apply', 422);
+    } else if (p.action !== 'dismiss') throw E.bad('Not found', 404);
+    await S.update('ai_cards', { id: c.id }, { status: p.action === 'apply' ? 'applied' : 'dismissed' });
+    return aiState(S, c.kind);
+  });
+  on('DELETE', '/api/ai/{kind}', async function (S, p) {
+    if (AI_KINDS.indexOf(p.kind) < 0) throw E.bad('Not found', 404);
+    await S.remove('ai_messages', { kind: p.kind }); await S.remove('ai_cards', { kind: p.kind });
+    if (p.kind === 'mycode') await E.set(S, 'my_code_draft', '');
+    return aiState(S, p.kind);
+  });
+  on('POST', '/api/mycode/save', async function (S) {
+    var d = E.get(S, 'my_code_draft');
+    if (!d) throw E.bad('There is no draft yet.', 409);
+    await E.set(S, 'my_code_json', d); await E.set(S, 'my_code_saved_at', E.todayStr());
+    return aiState(S, 'mycode');
+  });
+
   // ---------- blog ----------
   on('GET', '/api/blog', function (S) {
     var fc = E.forecast(S);
@@ -292,7 +372,7 @@
       plan_id: plan ? plan.id : null, today_plan: todayPlan, today_schedule: sched,
       today_lift: lift ? { workout: lift.workout, status: lift.status, exercises: E.workoutTemplate(S, lift.workout) } : null,
       day_no: E.daysBetween(a.start_date, today) + 1,
-      has_my_code: !!E.get(S, 'my_code'),
+      has_my_code: !!(E.get(S, 'my_code') || E.get(S, 'my_code_json')),
       checkin: E.checkin(S, today), water_goal: E.waterGoal(S), protein_goal: E.proteinGoal(S)
     };
   });

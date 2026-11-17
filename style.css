@@ -205,3 +205,42 @@ tr.today-tr td { background: var(--soft-accent); }
 .timer .tbtns button { background: transparent; color: inherit; border-color: rgba(251,250,246,.55); padding: 10px 12px; font-size: 16px; }
 body.has-bar main { padding-bottom: 120px; }
 .bp-step { width: 170px; }
+
+/* coach */
+.coach-main { max-width: 860px; }
+.chat { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
+.bubble { background: var(--card); border: 1px solid var(--rule); border-radius: var(--radius); padding: 12px 14px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.bubble.user { background: var(--soft-accent); border-color: transparent; margin-left: 12%; }
+.bubble.assistant { margin-right: 6%; }
+.bubble .who { font-family: var(--display); font-weight: 600; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+.bubble .who span { color: var(--muted); font-weight: 400; letter-spacing: .04em; margin-left: 6px; }
+.bubble .body p { margin: 6px 0 0; }
+.bubble .body ul, .bubble .body ol { margin: 6px 0 0; padding-left: 20px; }
+.sugg { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+.sugg-act { display: flex; gap: 6px; align-items: center; }
+.coach-thinking { color: var(--muted); font-style: italic; margin: 0 0 12px; }
+.starters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.starters button { text-transform: none; letter-spacing: 0; font-family: var(--serif); font-weight: 400; font-size: 15px; }
+.coach-form { display: flex; gap: 8px; align-items: stretch; position: sticky; bottom: 0; background: var(--bg); padding: 8px 0; }
+.coach-form textarea { flex: 1; resize: vertical; font-size: 16px; }
+.coach-form button { padding: 0 18px; }
+
+/* My Code builder draft */
+.code-draft .eyebrow { font-family: var(--display); font-weight: 600; font-size: 13px; letter-spacing: .28em; text-transform: uppercase; color: var(--accent); }
+.code-draft .title { font-family: var(--display); font-weight: 700; font-size: 34px; line-height: 1; letter-spacing: .04em; text-transform: uppercase; margin: 2px 0 10px; }
+.code-draft section { margin: 0 0 12px; }
+.code-draft h3 { color: var(--accent); margin: 0 0 4px; border-bottom: 1px solid var(--line); padding-bottom: 2px; }
+.code-draft p { margin: 0 0 4px; }
+.code-draft p.lead { font-weight: 600; }
+
+/* AI setup */
+.providers { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 8px; }
+.prov { display: flex; flex-direction: row; gap: 10px; align-items: flex-start; border: 1px solid var(--rule); border-radius: var(--radius); padding: 10px; cursor: pointer; font-family: var(--serif); font-weight: 400; font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--ink); }
+.prov.on { border-color: var(--accent); background: var(--soft-accent); }
+.prov input { margin-top: 4px; }
+.ai-form { display: flex; flex-direction: column; gap: 10px; }
+.ai-form input { width: 100%; }
+.getkey { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 8px; }
+.getkey .btn { display: flex; flex-direction: column; align-items: center; padding: 10px; border: 1px solid var(--accent); border-radius: var(--radius); font-family: var(--display); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); text-align: center; }
+.getkey .btn small { font-family: var(--serif); font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); font-size: 13px; }
+.getkey .btn:hover { background: var(--soft-accent); }

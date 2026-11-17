@@ -1,8 +1,8 @@
 /* Shared helpers for every page: sign-in check, nav, and api() over the person's rows.
    A page that is not account.html needs a signed-in person; without one it goes to account.html and comes back. */
 const NAV = [
-  ["index.html", "Dashboard"], ["weight.html", "Weight"], ["bp.html", "Blood pressure"], ["checkin.html", "Check-in"], ["training.html", "Training"], ["log.html", "Log"],
-  ["plan.html", "Meal plan"], ["recipes.html", "Recipes"], ["shopping.html", "Shopping"], ["foods.html", "Foods"], ["blog.html", "Blog"],
+  ["index.html", "Dashboard"], ["coach.html", "Coach"], ["weight.html", "Weight"], ["bp.html", "Blood pressure"], ["checkin.html", "Check-in"], ["training.html", "Training"], ["log.html", "Log"],
+  ["plan.html", "Meal plan"], ["recipes.html", "Recipes"], ["shopping.html", "Shopping"], ["foods.html", "Foods"], ["kitchen.html", "Kitchen"], ["blog.html", "Blog"],
 ];
 
 if (window.Chart) { Chart.defaults.font.family = '"Source Serif 4", Georgia, serif'; Chart.defaults.color = "#5a5f64"; Chart.defaults.borderColor = "#d3cdbf"; }
@@ -11,6 +11,16 @@ const PAGE = (location.pathname.split("/").pop() || "index.html");
 const CFG = window.HT_CONFIG || {};
 HT.configured = !!(CFG.supabaseUrl && CFG.supabaseKey && !/YOUR-/.test(CFG.supabaseUrl + CFG.supabaseKey));
 HT.sb = HT.configured && window.supabase ? supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey) : null;
+
+/* The AI service (supabase/functions/ai): the coach, the My Code builder, the kitchen helper and AI setup.
+   The key never comes to the browser; the function reads it. Errors come back with the service's own words. */
+HT.aiCall = HT.sb ? async body => {
+  const { data, error } = await HT.sb.functions.invoke("ai", { body });
+  if (!error) return data;
+  let msg = "The AI service did not answer. Check that the ai function is deployed (docs/SETUP.md).", status = 502;
+  try { status = error.context.status || status; const j = await error.context.json(); msg = j.error || msg; } catch (e) {}
+  const e = new Error(msg); e.status = status; throw e;
+} : null;
 
 // One promise per page: the signed-in person's rows, loaded. Pages call api() at once; it waits on this.
 // Preview on this PC with no Supabase project: one local person, rows kept in this browser only.

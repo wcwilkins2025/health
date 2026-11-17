@@ -8,7 +8,8 @@
 
   var TABLES = {   // table: primary key fields
     settings: ['key'], weight_log: ['id'], bp_log: ['id'], foods_custom: ['food_id'], meal_prefs: ['meal_id'],
-    plans: ['id'], gym_sets: ['id'], gym_workouts: ['workout', 'exercise'], blog_posts: ['date'], checkins: ['date']
+    plans: ['id'], gym_sets: ['id'], gym_workouts: ['workout', 'exercise'], blog_posts: ['date'], checkins: ['date'],
+    ai_messages: ['id'], ai_cards: ['id'], meals_custom: ['meal_id'], pantry: ['food_id']
   };
   HT.TABLES = TABLES;
 

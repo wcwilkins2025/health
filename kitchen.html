@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kitchen · Weight Target</title>
+<link rel="stylesheet" href="style.css?v=5">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#7a4219">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Weight Target">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="data/library.js?v=5"></script>
+<script src="js/store.js?v=5"></script>
+<script src="js/engine.js?v=5"></script>
+<script src="js/api.js?v=5"></script>
+<script src="js/app.js?v=5"></script>
+<script src="js/chat.js?v=5"></script>
+</head>
+<body>
+<main class="coach-main">
+  <h1>Kitchen</h1>
+  <div id="msg" class="msg" style="display:none"></div>
+  <div class="tabs" id="tabs">
+    <button class="active" data-tab="talk">Recipe ideas</button>
+    <button data-tab="hand">On hand</button>
+    <button data-tab="likes">Likes and dislikes</button>
+  </div>
+
+  <section id="tab-talk">
+    <div class="card" id="setup" style="display:none;margin-bottom:14px"></div>
+    <p class="small muted" style="margin:0 0 12px">Tell the kitchen helper what you like and what you won't eat; it writes recipes for your diet from the app's foods, with the nutrition worked out. Nothing joins your recipes until you add it.</p>
+  <div id="chat" class="chat"></div>
+  <div id="thinking" class="coach-thinking" style="display:none">Thinking…</div>
+  <div class="starters" id="starters"></div>
+  <form id="form" class="coach-form">
+    <textarea id="text" rows="2" placeholder="What do you like? What do you have?" maxlength="4000"></textarea>
+    <button type="submit" id="send">Send</button>
+  </form>
+    <p class="small" style="margin:10px 0 0"><button type="button" class="ghost small" id="clear">New conversation</button></p>
+  </section>
+
+  <section id="tab-hand" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <h2>What's in your kitchen</h2>
+      <p class="small muted" style="margin:0 0 8px">Tick what you have. Salt, pepper and spices always count.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <button type="button" id="cook">Recipe ideas from what I have</button>
+        <button type="button" class="ghost" id="plan">Plan next week from what I have</button>
+        <button type="button" class="small ghost" id="clear-hand">Untick all</button>
+      </div>
+      <p class="small" id="hand-count" style="margin:0 0 8px"></p>
+      <input type="search" id="hq" placeholder="Search foods" style="width:100%">
+      <div id="hand"></div>
+    </div>
+  </section>
+
+  <section id="tab-likes" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <h2>Likes and dislikes</h2>
+      <p class="small muted" style="margin:0 0 8px">The planner leans toward meals with foods you like. Foods you don't eat, or are allergic to, stay out of your plans and recipes.</p>
+      <div id="prefs"></div>
+      <form class="row" id="pref-form" style="margin-top:10px">
+        <label style="flex:1">Food <input id="pf" list="food-names" placeholder="type a food"></label>
+        <label>I <select id="pc"><option value="like">like it</option><option value="dislike">don't eat it</option><option value="allergy">am allergic</option></select></label>
+        <button type="submit">Save</button>
+      </form>
+      <datalist id="food-names"></datalist>
+    </div>
+    <div class="card">
+      <h2>Your recipes</h2>
+      <div id="mine" class="small"></div>
+    </div>
+  </section>
+</main>
+<script>
+let K = null, foods = [];
+const CH = { like: "Like", dislike: "Don't eat", allergy: "Allergy" };
+function show(tab) {
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  ["talk", "hand", "likes"].forEach(t => el("tab-" + t).style.display = t === tab ? "" : "none");
+  if (tab !== "talk") history.replaceState(null, "", "#" + tab); else history.replaceState(null, "", "kitchen.html");
+}
+document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => show(b.dataset.tab)));
+async function loadKitchen() {
+  const S = await HT.ready;
+  K = await api("/api/kitchen");
+  foods = HT.E.foods(S).filter(f => f.kcal_100 != null).sort((a, b) => a.name.localeCompare(b.name));
+  el("food-names").innerHTML = foods.map(f => `<option value="${esc(f.name)}">`).join("");
+  renderHand(); renderPrefs();
+}
+function renderHand() {
+  const q = el("hq").value.toLowerCase(), have = new Set(K.pantry);
+  const rows = foods.filter(f => !q || f.name.toLowerCase().includes(q)), by = {};
+  rows.forEach(f => (by[f.store_section] = by[f.store_section] || []).push(f));
+  el("hand").innerHTML = Object.keys(by).sort().map(sec => `<h3>${esc(sec)}</h3>` + by[sec].map(f =>
+    `<label class="check ${have.has(f.id) ? "done" : ""}"><input type="checkbox" ${have.has(f.id) ? "checked" : ""} onchange="hand('${f.id}', this.checked)"> ${esc(f.name)}${f.light === "red" ? ' <span class="pill red">off your diet</span>' : ""}</label>`).join("")).join("");
+  el("hand-count").textContent = `${have.size} on hand.`;
+}
+async function hand(id, on) { K = await api(`/api/kitchen/pantry/${encodeURIComponent(id)}`, { method: "PUT", body: { on } }); renderHand(); }
+function renderPrefs() {
+  el("prefs").innerHTML = K.prefs.length ? K.prefs.map(p => `<div class="food-row"><div class="name">${esc(p.name)} <span class="pill ${p.choice === "like" ? "green" : "red"}">${CH[p.choice]}</span></div>
+    <button class="small ghost" onclick="pref('${p.food_id}', 'none')">Remove</button></div>`).join("") : `<p class="muted small" style="margin:0">None yet. Tell the kitchen helper, or add one below.</p>`;
+  el("mine").innerHTML = K.custom_meals.length ? K.custom_meals.map(m => `<div class="food-row"><div class="name"><a href="recipes.html?meal=${encodeURIComponent(m.id)}">${esc(m.name)}</a> <span class="muted">${esc(m.meal_type)}</span></div>
+    <button class="small danger" onclick="dropMeal('${m.id}')">Delete</button></div>`).join("") : `<p class="muted" style="margin:0">Recipes you add from the kitchen helper show up here and in the planner.</p>`;
+}
+async function pref(id, choice) { try { K = await api(`/api/kitchen/prefs/${encodeURIComponent(id)}`, { method: "PUT", body: { choice } }); renderPrefs(); } catch (e) { flash("msg", e.message, "err"); } }
+async function dropMeal(id) { if (!confirm("Delete this recipe? Plans that use it keep an empty slot.")) return; await api(`/api/meals/custom/${encodeURIComponent(id)}`, { method: "DELETE" }); loadKitchen(); }
+el("pref-form").addEventListener("submit", ev => {
+  ev.preventDefault();
+  const f = foods.find(x => x.name.toLowerCase() === el("pf").value.trim().toLowerCase());
+  if (!f) { flash("msg", "Pick a food from the list.", "err"); return; }
+  pref(f.id, el("pc").value).then(() => { el("pf").value = ""; });
+});
+el("hq").addEventListener("input", renderHand);
+el("clear-hand").addEventListener("click", async () => { if (confirm("Untick everything?")) { K = await api("/api/kitchen/pantry", { method: "DELETE" }); renderHand(); } });
+el("cook").addEventListener("click", () => { show("talk"); HT.chatSend("Give me recipe ideas using only what I have on hand."); });
+el("plan").addEventListener("click", async () => {
+  const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7));
+  const ws = HT.E.iso(d);
+  try {
+    const p = await api("/api/plans", { method: "POST", body: { week_start: ws, pantry_from: "kitchen", replace: false } });
+    flash("msg", p.to_buy && p.to_buy.length ? `Planned. To buy: ${p.to_buy.join(", ")}.` : "Planned, all from what you have.");
+    setTimeout(() => location.href = `plan.html?week=${ws}`, 1200);
+  } catch (e) { flash("msg", e.message, "err"); }
+});
+HT.chat({ kind: "kitchen", who: "Kitchen", appliedText: "Added to your recipes.", empty: "Start with a question below, or tell it what you like.",
+  starters: ["Interview me about what I like.", "Give me three new dinners for my diet.", "Give me recipe ideas using only what I have on hand.", "I miss pizza. What's close that fits my diet?"],
+  onState: () => { if (K) loadKitchen(); } });
+el("clear").addEventListener("click", () => { if (confirm("Start a new conversation? Likes and added recipes stay.")) HT.chatClear(); });
+loadKitchen().catch(e => flash("msg", e.message, "err"));
+const t0 = location.hash.slice(1); if (["hand", "likes"].includes(t0)) show(t0);
+</script>
+</body>
+</html>

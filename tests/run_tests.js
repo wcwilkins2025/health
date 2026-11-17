@@ -365,6 +365,95 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     check('an unknown diet falls back to low-carb', E.diet(S) === 'lowcarb');
   });
 
+  await section('11. AI core (stand-in providers, nothing sent)', async () => {
+    const core = await import(require('url').pathToFileURL(path.join(root, 'supabase/functions/ai/core.js')).href);
+    check('keys recognized by their start', eq(['sk-ant-x', 'xai-x', 'gsk_x', 'AIzaX', 'sk-proj-x', 'nope'].map(core.detectProvider), ['anthropic', 'xai', 'groq', 'gemini', 'openai', null]));
+    check('low tier: Claude Haiku; cheapest capable elsewhere', core.modelFor(core.defaults({}), 'anthropic') === 'claude-haiku-5-5' &&
+      core.pickModel('groq', ['whisper-large-v3', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'], 'low') === 'openai/gpt-oss-20b' &&
+      core.pickModel('gemini', ['x-pro', 'x-flash', 'x-flash-lite', 'text-embedding'], 'low') === 'x-flash-lite');
+    const cfg = core.defaults({ provider: 'anthropic', keys: { anthropic: 'sk-ant-secret-1234' } });
+    const pub = core.publicConfig(cfg, null);
+    check('the setup page never sees a key', pub.configured && !JSON.stringify(pub).includes('sk-ant-secret') && pub.providers.find(p => p.id === 'anthropic').key_hint === '…1234');
+    const calls = [];
+    const deps = { anthropic: async (params) => { calls.push(JSON.parse(JSON.stringify(params))); return calls.length === 1
+      ? { stop_reason: 'tool_use', usage: { input_tokens: 100, output_tokens: 20 }, content: [{ type: 'text', text: 'Down 2 lb.' },
+          { type: 'tool_use', id: 't1', name: 'suggest_change', input: { setting: 'daily_kcal', value: '1850', why: 'pace' } },
+          { type: 'tool_use', id: 't2', name: 'suggest_change', input: { setting: 'daily_kcal', value: '200', why: 'x' } }] }
+      : { stop_reason: 'end_turn', usage: { input_tokens: 50, output_tokens: 10 }, content: [{ type: 'text', text: 'It is there to apply.' }] }; } };
+    const out = await core.runTurn(cfg, 'coach', [{ role: 'assistant', content: 'hi' }, { role: 'user', content: 'How am I doing?' }], { w: 1 }, { today: '2026-11-17' }, deps);
+    check('a Claude turn: replies, one good card, the bad one sent back as an error', eq(out.replies, ['Down 2 lb.', 'It is there to apply.']) && out.cards.length === 1 && out.cards[0].input.value === '1850' &&
+      calls[1].messages.at(-1).content[1].is_error === true && out.usage.tokens_in === 150);
+    check('the request: Haiku at low effort, short replies, history starts with the person, fresh context last', calls[0].model === 'claude-haiku-5-5' && calls[0].output_config.effort === 'low' && !calls[0].fallbacks &&
+      calls[0].max_tokens === 4000 && calls[0].messages[0].role === 'user' && calls[0].messages.at(-1).role === 'system');
+    const best = core.defaults({ provider: 'anthropic', tier: 'best', keys: { anthropic: 'sk-ant-k' } }); calls.length = 0;
+    await core.runTurn(best, 'mycode', [{ role: 'user', content: 'go' }], {}, {}, { anthropic: async (p) => { calls.push(p); return { stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }] }; } });
+    check('best tier: Opus with the refusal fallback', calls[0].model === 'claude-opus-5-5' && calls[0].fallbacks === 'default');
+    const groq = core.defaults({ provider: 'groq', models: { groq: 'm-70b' }, keys: { groq: 'gsk_k' } }); const posts = [];
+    const r2 = await core.runTurn(groq, 'kitchen', [{ role: 'user', content: 'ideas?' }], { foods: [] }, { foodIds: new Set(['eggs', 'bacon', 'bread']), offIds: new Set(['bread']) }, {
+      fetchJson: async (url, key, body) => { posts.push({ url, key, body: JSON.parse(JSON.stringify(body)) }); return posts.length === 1
+        ? { choices: [{ finish_reason: 'tool_calls', message: { content: '', tool_calls: [
+            { id: 'a', function: { name: 'create_recipe', arguments: JSON.stringify({ name: 'Bacon and eggs', meal_type: 'breakfast', portable: false, batch: false, instructions: 'Fry.', ingredients: [{ food_id: 'eggs', qty: 3, unit: 'egg' }, { food_id: 'bacon', qty: 2, unit: 'slice' }] }) } },
+            { id: 'b', function: { name: 'create_recipe', arguments: JSON.stringify({ name: 'Toast', meal_type: 'breakfast', portable: false, batch: false, instructions: '', ingredients: [{ food_id: 'bread', qty: 2, unit: 'slice' }] }) } },
+            { id: 'c', function: { name: 'set_food_preference', arguments: '{"food_id": "tofu", "choice": "dislike"}' } }] } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }
+        : { choices: [{ finish_reason: 'stop', message: { content: 'Two recipes below.' } }] }; } });
+    check('an OpenAI-style turn (Groq): one recipe passes, off-diet and unknown foods are sent back', posts[0].url === 'https://api.groq.com/openai/v1/chat/completions' && posts[0].key === 'gsk_k' &&
+      r2.cards.length === 1 && r2.cards[0].input.name === 'Bacon and eggs' && posts[1].body.messages.filter(m => m.role === 'tool').map(m => m.content.startsWith('Error')).join() === 'false,true,true');
+    let threw = false; try { await core.runTurn(core.defaults({}), 'coach', [{ role: 'user', content: 'x' }], {}, {}, {}); } catch (e) { threw = e.status === 503; }
+    check('not set up: a clear 503', threw);
+  });
+
+  await section('12. Kitchen, recipes and the AI routes in the app', async () => {
+    const { S, api } = fresh();
+    setNow('2026-11-17');
+    await api('PATCH', '/api/settings', { start_weight: 280, target_weight: 180, start_date: '2026-11-10', setup_done: '1' });
+    await api('PUT', '/api/kitchen/prefs/salmon-fillet', { choice: 'like' });
+    let k = await api('PUT', '/api/kitchen/prefs/shrimp', { choice: 'allergy' });
+    check('likes and allergies recorded; an allergy turns the food red', k.prefs.length === 2 && E.foodMap(S).shrimp.light === 'red' && E.likedFoods(S).has('salmon-fillet'));
+    await api('PUT', '/api/kitchen/prefs/shrimp', { choice: 'none' });
+    check('none undoes it', E.foodMap(S).shrimp.light === 'green' && !E.prefs(S).shrimp);
+    check('an unknown food or choice is refused', await throws(() => api('PUT', '/api/kitchen/prefs/unicorn', { choice: 'like' }), 404) && await throws(() => api('PUT', '/api/kitchen/prefs/eggs', { choice: 'love' }), 422));
+    check('no pantry: planning from it is refused', await throws(() => api('POST', '/api/plans', { week_start: '2026-11-23', pantry_from: 'kitchen' }), 409));
+    for (const f of ['eggs', 'bacon', 'butter', 'ground-beef-80-20', 'cheddar-cheese', 'sirloin-steak', 'string-cheese']) await api('PUT', `/api/kitchen/pantry/${f}`, { on: true });
+    const m = await api('POST', '/api/meals/custom', { name: 'Cheesy beef scramble', meal_type: 'breakfast', instructions: 'Brown, scramble.', ingredients: [{ food_id: 'ground-beef-80-20', qty: 4, unit: 'oz' }, { food_id: 'eggs', qty: 3, unit: 'egg' }, { food_id: 'cheddar-cheese', qty: 1, unit: 'oz' }] });
+    check('a recipe of your own joins the library with its macros', m.id.startsWith('u-meal-cheesy-beef-scramble') && E.mealMap(S)[m.id].custom && E.mealMacros(S)[m.id].protein > 40);
+    check('a recipe with an unknown food or unweighable unit is refused', await throws(() => api('POST', '/api/meals/custom', { name: 'X', meal_type: 'lunch', ingredients: [{ food_id: 'unicorn', qty: 1, unit: 'oz' }] }), 422) &&
+      await throws(() => api('POST', '/api/meals/custom', { name: 'Y', meal_type: 'lunch', ingredients: [{ food_id: 'eggs', qty: 1, unit: 'bucket' }] }), 422) &&
+      await throws(() => api('POST', '/api/meals/custom', { name: 'Cheesy beef scramble', meal_type: 'lunch', ingredients: [{ food_id: 'eggs', qty: 1, unit: 'egg' }] }), 409));
+    const plan = await api('POST', '/api/plans', { week_start: '2026-11-23', pantry_from: 'kitchen' });
+    const onHand = new Set([...E.pantry(S), ...E.STAPLES]), mm = E.mealMap(S);
+    const bfast = plan.days.map(d => d.slots.find(s => s.slot === 'breakfast').meal_id);
+    check('a week from what is on hand: breakfasts use only on-hand food, your own recipe among them', bfast.every(id => mm[id].ingredients.every(i => onHand.has(i.food_id))) && bfast.includes(m.id), bfast);
+
+    // the conversations, with the AI service stood in
+    let sent = null;
+    HT.aiCall = async (body) => { sent = body; return body.kind === 'kitchen'
+      ? { replies: ['Two ideas below.'], cards: [{ tool: 'set_food_preference', input: { food_id: 'cod-or-tilapia', choice: 'dislike' } },
+          { tool: 'create_recipe', input: { name: 'Steak and cheddar plate', meal_type: 'dinner', portable: false, batch: false, instructions: 'Sear.', ingredients: [{ food_id: 'sirloin-steak', qty: 8, unit: 'oz' }, { food_id: 'cheddar-cheese', qty: 1, unit: 'oz' }] } }] }
+      : body.kind === 'mycode' ? { replies: ['Draft below.'], cards: [{ tool: 'write_code', input: { eyebrow: 'Sam', title: 'My Code', sections: [{ heading: 'Why', lead: 'For my kids.', lines: [] }] } }] }
+      : { replies: ['Down 2 lb.'], cards: [{ tool: 'suggest_change', input: { setting: 'daily_kcal', value: '1850', why: 'pace' } }] }; };
+    let st = await api('POST', '/api/ai/kitchen', { message: 'I hate cod. Give me dinner ideas.' });
+    check('kitchen: context has the food list and on-hand; ids sent for checking', sent.context.foods.length > 100 && sent.context.on_hand.includes('Eggs') && sent.food_ids.includes('eggs') && sent.off_ids.includes('shrimp') === false);
+    const recipeCard = st.messages.at(-1).cards.find(c => c.tool === 'create_recipe');
+    check('a stated dislike is applied at once; a recipe waits as a card', E.prefs(S)['cod-or-tilapia'] === 'dislike' && recipeCard.status === 'open');
+    st = await api('POST', `/api/ai/cards/${recipeCard.id}/apply`);
+    check('adding the recipe card puts it in your recipes', E.meals(S).some(x => x.custom && x.name === 'Steak and cheddar plate') && await throws(() => api('POST', `/api/ai/cards/${recipeCard.id}/apply`), 409));
+    st = await api('POST', '/api/ai/coach', { message: 'How am I doing?' });
+    check('coach: context has numbers and check-ins; the history starts with you', sent.context.weight && 'checkins_last_7_days' in sent.context && sent.history[0].role === 'user' && sent.history.at(-1).content === 'How am I doing?');
+    const card = st.messages.at(-1).cards[0];
+    await api('POST', `/api/ai/cards/${card.id}/apply`);
+    check('applying the coach card changes the setting', E.get(S, 'daily_kcal') === '1850');
+    st = await api('POST', '/api/ai/mycode', { message: 'Help me write my code.' });
+    check('My Code: the draft is kept, not yet your code', st.draft.sections[0].lead === 'For my kids.' && st.code === null);
+    st = await api('POST', '/api/mycode/save');
+    check('make it your code', st.code.eyebrow === 'Sam' && st.saved_at === '2026-11-17');
+    HT.aiCall = async () => { const e = new Error('limit of 25'); e.status = 429; throw e; };
+    const before = S.db.ai_messages.length;
+    check('when the service says no, nothing is stored', await throws(() => api('POST', '/api/ai/coach', { message: 'again' }), 429) && S.db.ai_messages.length === before);
+    await api('DELETE', '/api/ai/coach');
+    check('a new conversation clears the coach only', !S.db.ai_messages.some(x => x.kind === 'coach') && S.db.ai_messages.some(x => x.kind === 'kitchen'));
+    delete HT.aiCall;
+  });
+
   console.log(failures ? `\n${failures} FAILED` : '\nAll checks pass.');
   process.exit(failures ? 1 : 0);
 })();

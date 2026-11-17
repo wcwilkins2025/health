@@ -37,7 +37,7 @@
     activity: 'sedentary', workouts_per_week: '', kcal_per_workout: '300', daily_kcal: '', water_loss_lb: '6', target_date: '',
     lift_rotation: 'Push,Pull,Legs,Push,Pull,Legs,Rest', walk_min_per_week: '0', bike_min_per_week: '0', walk_pace: 'brisk',
     bike_pace: 'moderate', blog_title: 'The Weight Log', blog_intro: '', workout_goal_per_week: '6', gymace_last_sync: '',
-    name: '', my_code: '', water_goal_oz: '100', protein_goal_g: '', diet: 'lowcarb'
+    name: '', my_code: '', water_goal_oz: '100', protein_goal_g: '', diet: 'lowcarb', my_code_draft: '', my_code_json: '', my_code_saved_at: ''
   };
   E.SETTING_KEYS = Object.keys(E.DEFAULTS);
   E.get = function (S, key, dflt) {
@@ -113,7 +113,9 @@
   E.meals = function (S) {
     var off = {};
     S.db.meal_prefs.forEach(function (r) { off[r.meal_id] = r.enabled; });
-    return LIB().meals.map(function (m) { return Object.assign({}, m, { enabled: off[m.id] === undefined ? true : !!off[m.id] }); });
+    var lib = LIB().meals.map(function (m) { return Object.assign({}, m, { enabled: off[m.id] === undefined ? true : !!off[m.id] }); });
+    var own = S.db.meals_custom.map(function (r) { return Object.assign({ portable: false, batch: false, instructions: '', ingredients: [] }, r.data, { id: r.meal_id, custom: true, enabled: off[r.meal_id] === undefined ? true : !!off[r.meal_id] }); });
+    return lib.concat(own);
   };
   E.mealMap = function (S) { var m = {}; E.meals(S).forEach(function (x) { m[x.id] = x; }); return m; };
 
@@ -135,7 +137,7 @@
   E.rounded = function (m) { return { kcal: Math.round(m.kcal), protein: Math.round(m.protein), fat: Math.round(m.fat), carbs: r1(m.carbs) }; };
   E.mealMacros = function (S) {
     var foods = E.foodMap(S), out = {};
-    LIB().meals.forEach(function (m) {
+    E.meals(S).forEach(function (m) {   // the library and the person's own recipes
       var t = E.zero(), complete = true;
       m.ingredients.forEach(function (i) {
         var f = foods[i.food_id], p = f ? E.macros(f, i.qty, i.unit) : null;
@@ -423,12 +425,16 @@
     p.days.forEach(function (d) { d.slots.forEach(function (s) { var m = mm[s.meal_id]; if (m) m.ingredients.forEach(function (i) { out.add(i.food_id); }); }); });
     return out;
   };
-  function pick(rand, pool, used, portableOnly, avoid) {
+  function pick(rand, pool, used, portableOnly, avoid, liked) {
     var c = pool.filter(function (m) { return (m.portable || !portableOnly) && !(avoid && avoid[m.id]); });
     if (!c.length) c = pool.filter(function (m) { return m.portable || !portableOnly; });
     if (!c.length) return null;
     var low = Math.min.apply(null, c.map(function (m) { return used[m.id] || 0; }));
     c = c.filter(function (m) { return (used[m.id] || 0) === low; });
+    if (liked && liked.size) {   // lean toward meals with foods they like, two times in three, so variety stays
+      var fav = c.filter(function (m) { return m.ingredients.some(function (i) { return liked.has(i.food_id); }); });
+      if (fav.length && rand() < 0.67) c = fav;
+    }
     var ch = c[Math.floor(rand() * c.length)];
     used[ch.id] = (used[ch.id] || 0) + 1;
     return ch;
@@ -449,17 +455,17 @@
         if (inP.length) byType[t] = inP;
       });
     }
-    var rand = rng(ws), used = {}, days = [], prevDinner = null;
+    var rand = rng(ws), used = {}, days = [], prevDinner = null, liked = E.likedFoods(S);
     for (var i = 0; i < 7; i++) {
       var d = E.addDays(ws, i), isAway = !!away[d], ch = {};
-      ch.breakfast = pick(rand, byType.breakfast, used, isAway);
-      ch.lunch = pick(rand, byType.lunch, used, isAway);
+      ch.breakfast = pick(rand, byType.breakfast, used, isAway, null, liked);
+      ch.lunch = pick(rand, byType.lunch, used, isAway, null, liked);
       var av = {}; if (prevDinner) av[prevDinner] = 1;
-      ch.dinner = pick(rand, byType.dinner, used, false, av);
+      ch.dinner = pick(rand, byType.dinner, used, false, av, liked);
       prevDinner = ch.dinner ? ch.dinner.id : null;
-      ch.snack1 = pick(rand, byType.snack, used, isAway);
+      ch.snack1 = pick(rand, byType.snack, used, isAway, null, liked);
       var av2 = {}; if (ch.snack1) av2[ch.snack1.id] = 1;
-      ch.snack2 = pick(rand, byType.snack, used, isAway, av2);
+      ch.snack2 = pick(rand, byType.snack, used, isAway, av2, liked);
       days.push({ date: d, away: isAway, slots: E.SLOTS.map(function (s) { return { slot: s, meal_id: ch[s] ? ch[s].id : null }; }) });
     }
     var row = await S.insert('plans', { week_start: ws, created_at: new Date().toISOString(), days: days, checks: {} });
@@ -729,6 +735,102 @@
   };
 
   // ---------- blog ----------
+  // ---------- kitchen: likes and dislikes, what is on hand, recipes a person adds ----------
+  E.STAPLES = ['salt', 'black-pepper', 'garlic-powder', 'italian-seasoning', 'taco-seasoning'];   // always on hand
+  E.prefs = function (S) {
+    var out = {};
+    S.db.foods_custom.forEach(function (r) { if (r.data && r.data.pref) out[r.food_id] = r.data.pref; });
+    return out;
+  };
+  E.likedFoods = function (S) { var p = E.prefs(S); return new Set(Object.keys(p).filter(function (k) { return p[k] === 'like'; })); };
+  /* like / dislike / allergy / none. Dislike and allergy turn the food red for this person; none undoes it. */
+  E.setPref = async function (S, foodId, choice) {
+    if (!E.foodMap(S)[foodId]) throw E.bad('No such food', 404);
+    if (['like', 'dislike', 'allergy', 'none'].indexOf(choice) < 0) throw E.bad('choice must be like, dislike, allergy or none', 422);
+    var cur = Object.assign({}, (S.db.foods_custom.find(function (r) { return r.food_id === foodId; }) || {}).data || {});
+    var wasOff = cur.pref === 'dislike' || cur.pref === 'allergy';
+    if (choice === 'none') { delete cur.pref; if (wasOff) { delete cur.light; delete cur.unlocked; } }
+    else {
+      cur.pref = choice;
+      if (choice === 'dislike' || choice === 'allergy') { cur.light = 'red'; cur.unlocked = false; }
+      else if (wasOff) { delete cur.light; delete cur.unlocked; }
+    }
+    await S.upsert('foods_custom', { food_id: foodId, data: cur });
+  };
+  E.pantry = function (S) { return new Set(S.db.pantry.map(function (r) { return r.food_id; })); };
+  E.setPantry = async function (S, foodId, on) {
+    if (!E.foodMap(S)[foodId]) throw E.bad('No such food', 404);
+    if (on) await S.upsert('pantry', { food_id: foodId });
+    else await S.remove('pantry', { food_id: foodId });
+  };
+  /* a recipe a person adds: only foods in their list, quantities in units the app can weigh */
+  E.addCustomMeal = async function (S, r) {
+    var foods = E.foodMap(S), name = String(r.name || '').trim();
+    if (!name) throw E.bad('A recipe needs a name', 422);
+    if (['breakfast', 'lunch', 'dinner', 'snack'].indexOf(r.meal_type) < 0) throw E.bad('meal_type must be breakfast, lunch, dinner or snack', 422);
+    var ing = (r.ingredients || []).map(function (i) { return { food_id: String(i.food_id), qty: Number(i.qty), unit: String(i.unit) }; });
+    if (!ing.length) throw E.bad('A recipe needs ingredients', 422);
+    ing.forEach(function (i) {
+      var f = foods[i.food_id];
+      if (!f) throw E.bad('Not in the food list: ' + i.food_id, 422);
+      if (!(i.qty > 0)) throw E.bad('Every ingredient needs a quantity', 422);
+      if (E.grams(f, i.qty, i.unit) === null) throw E.bad('The app cannot weigh ' + i.unit + ' of ' + f.name, 422);
+    });
+    if (E.meals(S).some(function (m) { return m.name.toLowerCase() === name.toLowerCase(); })) throw E.bad('A recipe with that name already exists', 409);
+    var id = 'u-meal-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) + '-' + Date.now().toString(36);
+    var data = { name: name.slice(0, 80), meal_type: r.meal_type, portable: !!r.portable, batch: !!r.batch, instructions: String(r.instructions || '').slice(0, 1500), ingredients: ing };
+    await S.upsert('meals_custom', { meal_id: id, data: data });
+    return E.mealMap(S)[id];
+  };
+
+  // ---------- what the AI sees: compact summaries of the person's own numbers ----------
+  function lastDays(list, field, n) { var since = E.addDays(E.todayStr(), -n); return list.filter(function (x) { return String(x[field]) >= since; }); }
+  E.coachContext = function (S) {
+    var today = E.todayStr(), w = E.weightStats(S), b = E.bpStats(S), a = E.assumptions(S), fc = E.forecast(S);
+    var entries = w.entries; delete w.entries;
+    var readings = b.entries; delete b.entries; delete b.rolling;
+    var line = {}; (fc.forecast || []).forEach(function (p) { line[p.date] = p.weight; });
+    var fcShort = {}; Object.keys(fc).forEach(function (k) { if (!(Array.isArray(fc[k]) && fc[k].length > 20)) fcShort[k] = fc[k]; });
+    fcShort.forecast_line_weekly = Object.keys(line).sort().filter(function (d) { return d >= today && d <= E.addDays(today, 56); }).filter(function (d, i) { return i % 7 === 0; }).map(function (d) { return { date: d, weight: line[d] }; });
+    var plan = E.planForWeek(S, today);
+    var keys = ['start_weight', 'target_weight', 'start_date', 'target_date', 'sex', 'age', 'height_in', 'activity', 'daily_kcal', 'walk_min_per_week', 'bike_min_per_week', 'workout_goal_per_week', 'lift_rotation', 'water_goal_oz', 'protein_goal_g', 'name'];
+    var settings = {}; keys.forEach(function (k) { settings[k] = E.get(S, k); });
+    return {
+      today: today, weekday: E.DAYS[E.weekday(today)], diet: E.DIETS.find(function (d) { return d.id === E.diet(S); }), settings: settings,
+      weight: Object.assign(w, { weigh_ins_last_45_days: lastDays(entries, 'date', 45) }), forecast: fcShort,
+      blood_pressure: Object.assign(b, { readings_last_21_days: lastDays(readings, 'taken_at', 21).map(function (r) { return { taken_at: r.taken_at, systolic: r.systolic, diastolic: r.diastolic, pulse: r.pulse, context: r.context }; }) }),
+      training_this_week: E.week(S, a, E.latestWeight(S, a), E.monday(today), today), recent_sessions: E.sessions(S, 10),
+      meal_plan_this_week: plan ? plan.days.map(function (d) { return { date: d.date, away: !!d.away, nutrition: d.nutrition, meals: d.slots.filter(function (s) { return s.name; }).map(function (s) { return s.name; }) }; }) : null,
+      checkins_last_7_days: lastDays(S.db.checkins, 'date', 7).map(function (c) { return { date: c.date, energy: c.energy, focus: c.focus, mood: c.mood, sleep_hours: c.sleep_hours, water_oz: c.water_oz, habits: Object.keys(c.habits || {}) }; }),
+      own_notes_last_7_days: lastDays(S.db.blog_posts.filter(function (p) { return p.commentary; }), 'date', 7).map(function (p) { return { date: p.date, note: p.commentary }; }),
+      coach_suggestions_recent: S.db.ai_cards.filter(function (c) { return c.kind === 'coach'; }).slice(-10).map(function (c) { return { setting: c.data.setting, value: c.data.value, status: c.status }; })
+    };
+  };
+  E.kitchenContext = function (S) {
+    var fm = E.foods(S), prefs = E.prefs(S), pantry = E.pantry(S), names = {};
+    fm.forEach(function (f) { names[f.id] = f.name; });
+    return {
+      diet: E.DIETS.find(function (d) { return d.id === E.diet(S); }),
+      foods: fm.filter(function (f) { return f.kcal_100 != null; }).map(function (f) {
+        return { id: f.id, name: f.name, light: f.light, unlocked: !!f.unlocked, units: Object.keys(f.unit_grams || {}).concat(['oz']).filter(function (u, i, a) { return a.indexOf(u) === i; }) };
+      }),
+      likes: Object.keys(prefs).filter(function (k) { return prefs[k] === 'like'; }).map(function (k) { return names[k]; }),
+      dislikes: Object.keys(prefs).filter(function (k) { return prefs[k] !== 'like'; }).map(function (k) { return names[k] + (prefs[k] === 'allergy' ? ' (allergy)' : ''); }),
+      on_hand: Array.from(pantry).map(function (k) { return names[k]; }).filter(Boolean),
+      their_recipes: E.meals(S).filter(function (m) { return m.custom; }).map(function (m) { return m.name; })
+    };
+  };
+  /* food ids the kitchen helper may use, and the ones off their diet or disliked */
+  E.kitchenIds = function (S) {
+    var fm = E.foods(S).filter(function (f) { return f.kcal_100 != null; });
+    return { food_ids: fm.map(function (f) { return f.id; }), off_ids: fm.filter(function (f) { return f.light === 'red' || !f.unlocked; }).map(function (f) { return f.id; }) };
+  };
+  E.codeContext = function (S) {
+    var d = E.get(S, 'my_code_draft');
+    return { name: E.get(S, 'name'), start_weight: E.get(S, 'start_weight'), target_weight: E.get(S, 'target_weight'),
+      diet: (E.DIETS.find(function (x) { return x.id === E.diet(S); }) || {}).name, current_draft: d ? JSON.parse(d) : null };
+  };
+
   // ---------- daily check-in: how the day felt, sleep, water, the habits kept ----------
   E.HABITS = [
     ['dark_room', 'Slept in a dark room, no phone in bed'],
