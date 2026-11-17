@@ -100,6 +100,8 @@
     await S.insert('bp_log', q(db, 'SELECT taken_at, systolic, diastolic, pulse, context, note FROM bp_log ORDER BY taken_at').map(function (r) {
       return { taken_at: r.taken_at, systolic: r.systolic, diastolic: r.diastolic, pulse: r.pulse, context: r.context || 'morning', note: r.note || '' }; }));
 
+    // the library's food notes before they were rewritten (2026-11-15), so the old app's copies of them are not taken for edits
+    var PREVIOUS_NOTES = {"bacon":"","breakfast-sausage":"Check label for sugar","jimmy-dean-sausage-patties":"Original. Fresh or fully cooked","italian-sausage":"","pepperoni":"","salami":"","deli-turkey":"No sugar added, under 1g carb","deli-ham":"No honey or brown sugar glaze","mayonnaise":"Real mayo, not light","ranch-dressing":"Full fat","blue-cheese-dressing":"","caesar-dressing":"","light-italian-dressing":"Check the label: under 3 g sugar"};
     // foods: unlock state and notes that differ from the library; foods added in the old app come over as the person's own
     var custom = [];
     Object.values(oldFoods).forEach(function (f) {
@@ -107,7 +109,8 @@
       if (id) {
         var L = lib.foods.find(function (x) { return x.id === id; }), d = {};
         if (!!f.unlocked !== !!L.unlocked) d.unlocked = !!f.unlocked;
-        if ((f.note || '') !== (L.note || '')) d.note = f.note || '';
+        var oldNote = f.note || '';   // an empty note, or the library's earlier wording, is not the person's edit
+        if (oldNote && oldNote !== (L.note || '') && oldNote !== (PREVIOUS_NOTES[id] || '')) d.note = oldNote;
         if (f.light !== L.light) d.light = f.light;
         if ((f.store_section || '') !== (L.store_section || '')) d.store_section = f.store_section;
         if (Object.keys(d).length) custom.push({ food_id: id, data: d });
