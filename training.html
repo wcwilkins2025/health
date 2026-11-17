@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Training · Steadfast Health</title>
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#7a4219">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,9 +16,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <script src="data/library.js?v=6"></script>
-<script src="js/store.js?v=6"></script>
-<script src="js/engine.js?v=6"></script>
-<script src="js/api.js?v=6"></script>
+<script src="js/store.js?v=8"></script>
+<script src="js/engine.js?v=7"></script>
+<script src="js/api.js?v=7"></script>
 <script src="js/app.js?v=6"></script>
 <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
 <script src="js/import.js?v=6"></script>
@@ -56,7 +56,7 @@
   </div>
 
   <div class="tweek" id="week"></div>
-  <p class="small muted" style="margin:8px 0 14px">Lifts come from your <a href="log.html">log</a>: the workout's exercises in order, the sets and reps it asks for, and the last top set as the number to beat. A day you lifted shows what you did, whatever the rotation said; what the week still owes moves to the days left. Walks and rides are the plan; nothing is logged.
+  <p class="small muted" style="margin:8px 0 14px">Lifts come from your <a href="log.html">log</a>: the workout's exercises in order, the sets and reps it asks for, and the last top set as the number to beat. A day you lifted shows what you did, whatever the rotation said; what the week still owes moves to the days left. Walks and rides are the plan; other training you log (walks, rides, swims, classes, sports) shows on the day it was done.
     <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--accent)">Import from Gym ACE</summary>
       <span style="display:block;margin-top:6px">Upload Gym ACE's database (Settings → Backup in Gym ACE, or the GymACE.db file): <input type="file" id="import-file" accept=".db,.sqlite,.bak,*/*" style="font-size:14px"> <button class="small" id="import">Import</button>
       <span id="last-sync"></span></span>
@@ -132,7 +132,8 @@ function renderWeek() {
     } else if (done.length) {
       rows.push(`<div class="it"><span class="k">Lift</span><span class="done">✓ ${esc(done[0].workout || "Workout")}, ${done[0].sets} sets</span></div>`);
     }
-    d.items.filter(x => x.what !== "Lift").forEach(x => rows.push(`<div class="it"><span class="k">${esc(x.what.split(",")[0])}</span>${esc(x.what.split(",")[1] || "")}, ${x.minutes} min <span class="m">${x.kcal} kcal</span></div>`));
+    d.items.filter(x => x.what === "Activity").forEach(x => rows.push(`<div class="it done"><span class="k">${esc(x.name)}</span>${x.minutes} min, ${esc(x.intensity)} <span class="m">${x.kcal} kcal</span></div>`));
+    d.items.filter(x => x.what !== "Lift" && x.what !== "Activity").forEach(x => rows.push(`<div class="it"><span class="k">${esc(x.what.split(",")[0])}</span>${esc(x.what.split(",")[1] || "")}, ${x.minutes} min <span class="m">${x.kcal} kcal</span></div>`));
     return `<div class="tday ${ds === today ? "today" : ""} ${rows.length ? "" : "rest"}"><h4>${ds === today ? "Today, " : ""}${fmtDate(ds)}</h4>${rows.join("") || `<div class="it muted">Rest</div>`}${d.kcal ? `<div class="tot">${d.kcal} kcal</div>` : ""}</div>`;
   }).join("");
 }

@@ -9,7 +9,7 @@
   var TABLES = {   // table: primary key fields
     settings: ['key'], weight_log: ['id'], bp_log: ['id'], foods_custom: ['food_id'], meal_prefs: ['meal_id'],
     plans: ['id'], gym_sets: ['id'], gym_workouts: ['workout', 'exercise'], blog_posts: ['date'], checkins: ['date'],
-    ai_messages: ['id'], ai_cards: ['id'], meals_custom: ['meal_id'], pantry: ['food_id']
+    ai_messages: ['id'], ai_cards: ['id'], meals_custom: ['meal_id'], pantry: ['food_id'], activities: ['id']
   };
   HT.TABLES = TABLES;
 
@@ -34,6 +34,10 @@
       var all = [], from = 0, size = 1000;
       for (;;) {
         var r = await self.client.from(t).select('*').range(from, from + size - 1);
+        if (r.error && (r.error.code === 'PGRST205' || r.error.code === '42P01' || /does not exist|schema cache/i.test(r.error.message || ''))) {
+          console.warn('Table ' + t + ' is not in the database yet; run supabase/schema.sql again.');   // a newer page on an older schema: carry on without it
+          break;
+        }
         if (r.error) throw err(r.error);
         all = all.concat(r.data);
         if (r.data.length < size) break;

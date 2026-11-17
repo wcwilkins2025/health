@@ -127,6 +127,16 @@
   });
   on('DELETE', '/api/workouts/{name}', async function (S, p) { await S.remove('gym_workouts', { workout: p.name }); return { ok: true }; });
   on('GET', '/api/exercises', function (S) { return E.exerciseNames(S); });
+  on('GET', '/api/activities', function (S, p, b, q) {
+    var to = q.get('to') || E.todayStr(), from = q.get('from') || E.addDays(to, -13);
+    E.parse(from); E.parse(to);
+    return { kinds: E.ACTIVITIES, entries: E.activitiesOn(S, from, to).reverse() };
+  });
+  on('POST', '/api/activities', async function (S, p, b) { var r = await E.addActivity(S, b); return E.activitiesOn(S, r.date, r.date).find(function (x) { return x.id === r.id; }); });
+  on('DELETE', '/api/activities/{id}', async function (S, p) {
+    if (!S.db.activities.some(function (x) { return String(x.id) === String(p.id); })) throw E.bad('No such entry', 404);
+    await S.remove('activities', { id: p.id }); return { ok: true };
+  });
 
   // ---------- foods and meals ----------
   var LIGHT_ORDER = { green: 0, yellow: 1, red: 2 };

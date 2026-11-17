@@ -277,7 +277,12 @@
     });
     return Object.keys(b).sort().map(function (k) { b[k].volume = Math.round(b[k].volume); return b[k]; });
   };
-  E.workoutDates = function (S) { return Array.from(new Set(sets(S).map(function (s) { return s.date; }))).sort(); };
+  /* days with a workout: a lifting session, or other training of 20 minutes or more */
+  E.workoutDates = function (S) {
+    var d = new Set(sets(S).map(function (s) { return s.date; }));
+    (S.db.activities || []).forEach(function (a) { if (a.minutes >= 20) d.add(a.date); });
+    return Array.from(d).sort();
+  };
   E.workoutNames = function (S) {
     var names = Array.from(new Set(S.db.gym_workouts.map(function (r) { return r.workout; }))).sort();
     if (!names.length) names = Array.from(new Set(sets(S).map(function (s) { return s.workout; }).filter(Boolean))).sort();
@@ -661,6 +666,42 @@
     } else out.intake = null;
     return out;
   };
+  // ---------- other training: kinds, effort and the calories they burn (MET values, Compendium of Physical Activities) ----------
+  E.ACTIVITIES = [
+    ['walk', 'Walking', 'Cardio', 3.5, true], ['hike', 'Hiking', 'Cardio', 6.0, true], ['run', 'Running', 'Cardio', 9.0, true],
+    ['bike', 'Cycling', 'Cardio', 7.0, true], ['stationary-bike', 'Stationary bike', 'Cardio', 6.0, false], ['swim', 'Swimming', 'Cardio', 6.0, true],
+    ['row', 'Rowing machine', 'Cardio', 6.5, false], ['elliptical', 'Elliptical', 'Cardio', 5.0, false], ['stairs', 'Stair climber', 'Cardio', 8.0, false],
+    ['hiit', 'HIIT / circuit', 'Classes', 8.0, false], ['yoga', 'Yoga', 'Classes', 2.8, false], ['pilates', 'Pilates', 'Classes', 3.0, false],
+    ['stretch', 'Stretching / mobility', 'Classes', 2.3, false], ['dance', 'Dance / aerobics class', 'Classes', 5.5, false], ['aqua', 'Water aerobics', 'Classes', 5.0, false],
+    ['pickleball', 'Pickleball', 'Sports', 4.5, false], ['tennis', 'Tennis', 'Sports', 7.0, false], ['golf', 'Golf (walking)', 'Sports', 4.8, false],
+    ['basketball', 'Basketball', 'Sports', 6.5, false], ['softball', 'Softball / baseball', 'Sports', 5.0, false], ['martial', 'Martial arts / boxing', 'Sports', 7.5, false],
+    ['yard', 'Yard work', 'Work', 4.0, false], ['chores', 'Heavy chores / moving things', 'Work', 4.5, false], ['other', 'Other', 'Other', 4.0, false]
+  ].map(function (x) { return { id: x[0], name: x[1], group: x[2], met: x[3], distance: x[4] }; });
+  E.INTENSITY = { easy: 0.8, moderate: 1.0, hard: 1.25 };
+  E.activityKcal = function (kind, minutes, intensity, weightLb) {
+    var k = E.ACTIVITIES.find(function (x) { return x.id === kind; });
+    if (!k) return 0;
+    return Math.round(minutes * E.kcalPerMin(k.met * (E.INTENSITY[intensity] || 1), weightLb));
+  };
+  E.addActivity = async function (S, b) {
+    var k = E.ACTIVITIES.find(function (x) { return x.id === b.kind; });
+    if (!k) throw E.bad('Pick a kind of training', 422);
+    var ds = b.date || E.todayStr(); E.parse(ds);
+    var minutes = Math.round(Number(b.minutes));
+    if (!(minutes >= 1 && minutes <= 600)) throw E.bad('Minutes have to be between 1 and 600', 422);
+    var intensity = E.INTENSITY[b.intensity] ? b.intensity : 'moderate';
+    var dist = b.distance === '' || b.distance == null ? null : Number(b.distance);
+    if (dist !== null && !(dist > 0 && dist < 500)) throw E.bad('Distance looks off', 422);
+    var a = E.assumptions(S), wt = E.latestWeight(S, a);
+    return S.insert('activities', { date: ds, kind: k.id, minutes: minutes, intensity: intensity, distance: dist,
+      kcal: E.activityKcal(k.id, minutes, intensity, wt), note: String(b.note || '').slice(0, 300) });
+  };
+  E.activitiesOn = function (S, from, to) {
+    return (S.db.activities || []).filter(function (x) { return x.date >= from && x.date <= to; })
+      .sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : x.id - y.id; })
+      .map(function (x) { var k = E.ACTIVITIES.find(function (z) { return z.id === x.kind; }) || { name: x.kind }; return Object.assign({}, x, { name: k.name }); });
+  };
+
   E.schedule = function (a, weight) {
     var rot = a.lift_rotation || [E.REST, E.REST, E.REST, E.REST, E.REST, E.REST, E.REST];
     var walk = a.walk_min_per_week, walkDays = walk >= 140 ? 7 : walk ? Math.max(1, Math.floor(walk / 20)) : 0;
@@ -701,7 +742,13 @@
       done[idx] = done[idx] || [];
       if (done[idx].indexOf(name) < 0) done[idx].push(name);
     });
-    return E.adaptWeek(a, E.schedule(a, weight), done, E.daysBetween(weekStart, today));
+    var week = E.adaptWeek(a, E.schedule(a, weight), done, E.daysBetween(weekStart, today));
+    E.activitiesOn(S, weekStart, end).forEach(function (x) {   // other training, as done
+      var d = week[E.daysBetween(weekStart, x.date)];
+      d.items.push({ what: 'Activity', name: x.name, kind: x.kind, minutes: x.minutes, kcal: x.kcal, intensity: x.intensity, status: 'done', id: x.id });
+      d.kcal += x.kcal;
+    });
+    return week;
   };
   E.latestWeight = function (S, a) { var w = E.weightEntries(S); return w.length ? w[w.length - 1].weight : a.start_weight; };
   E.forecast = function (S) {
@@ -800,6 +847,7 @@
       weight: Object.assign(w, { weigh_ins_last_45_days: lastDays(entries, 'date', 45) }), forecast: fcShort,
       blood_pressure: Object.assign(b, { readings_last_21_days: lastDays(readings, 'taken_at', 21).map(function (r) { return { taken_at: r.taken_at, systolic: r.systolic, diastolic: r.diastolic, pulse: r.pulse, context: r.context }; }) }),
       training_this_week: E.week(S, a, E.latestWeight(S, a), E.monday(today), today), recent_sessions: E.sessions(S, 10),
+      other_training_last_14_days: E.activitiesOn(S, E.addDays(today, -13), today).map(function (x) { return { date: x.date, kind: x.name, minutes: x.minutes, intensity: x.intensity, kcal: x.kcal }; }),
       meal_plan_this_week: plan ? plan.days.map(function (d) { return { date: d.date, away: !!d.away, nutrition: d.nutrition, meals: d.slots.filter(function (s) { return s.name; }).map(function (s) { return s.name; }) }; }) : null,
       checkins_last_7_days: lastDays(S.db.checkins, 'date', 7).map(function (c) { return { date: c.date, energy: c.energy, focus: c.focus, mood: c.mood, sleep_hours: c.sleep_hours, water_oz: c.water_oz, habits: Object.keys(c.habits || {}) }; }),
       own_notes_last_7_days: lastDays(S.db.blog_posts.filter(function (p) { return p.commentary; }), 'date', 7).map(function (p) { return { date: p.date, note: p.commentary }; }),
@@ -915,6 +963,7 @@
       });
     });
     out.sessions = order.map(function (k) { return merged[k]; });
+    out.activities = E.activitiesOn(S, ds, ds).map(function (x) { return { name: x.name, minutes: x.minutes, kcal: x.kcal, distance: x.distance }; });
     out.prs = prsToday;
     var mon = E.monday(ds), dates = new Set(E.workoutDates(S)), i;
     out.week_workouts = 0; out.last7_workouts = 0;
@@ -940,7 +989,8 @@
   E.generatePost = function (S, ds, fc) {
     var x = E.facts(S, ds, fc), bits = [];
     if (x.weight !== null) bits.push(lb(x.weight));
-    bits.push(x.sessions.length ? x.sessions.map(function (s) { return s.workout; }).join(', ') : 'rest day');
+    var moved = x.sessions.map(function (s) { return s.workout; }).concat(x.activities.map(function (t) { return t.name.toLowerCase(); }));
+    bits.push(moved.length ? moved.join(', ') : 'rest day');
     var title = 'Day ' + x.day_no + ': ' + bits.join(', '), p = [];
     if (x.weight !== null) {
       var line = '**Scale:** ' + lb(x.weight) + '.';
@@ -958,7 +1008,8 @@
         p.push('**Training:** ' + s.workout + '. ' + s.sets + ' sets, ' + Math.round(s.volume).toLocaleString('en-US') + ' lb moved. ' + ex + '.');
       });
       if (x.prs.length) p.push('**New bests:** ' + x.prs.map(function (r) { return r.exercise + ' ' + g(r.weight) + ' × ' + r.reps; }).join('; ') + '.');
-    } else p.push('**Training:** rest day.');
+    } else if (!x.activities.length) p.push('**Training:** rest day.');
+    if (x.activities.length) p.push('**Also:** ' + x.activities.map(function (t) { return t.name + ', ' + t.minutes + ' min' + (t.distance ? ', ' + g(t.distance) + ' mi' : '') + ' (about ' + t.kcal + ' kcal)'; }).join('; ') + '.');
     p.push('**This week:** workout ' + x.week_workouts + ' of ' + x.week_goal + '. ' + x.last7_workouts + ' in the last seven days.');
     if (x.meals.length) {
       var n = x.day_nutrition;

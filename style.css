@@ -244,3 +244,22 @@ body.has-bar main { padding-bottom: 120px; }
 .getkey .btn { display: flex; flex-direction: column; align-items: center; padding: 10px; border: 1px solid var(--accent); border-radius: var(--radius); font-family: var(--display); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); text-align: center; }
 .getkey .btn small { font-family: var(--serif); font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); font-size: 13px; }
 .getkey .btn:hover { background: var(--soft-accent); }
+
+/* other training, the exercise picker, routines */
+.act-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; align-items: end; }
+.act-step { width: 100%; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); }
+.seg button { background: var(--card); color: var(--ink); border-color: var(--rule); border-radius: 0; padding: 10px 4px; }
+.seg button:first-child { border-radius: var(--radius) 0 0 var(--radius); }
+.seg button:last-child { border-radius: 0 var(--radius) var(--radius) 0; }
+.seg button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.picker-wrap { position: fixed; inset: 0; background: rgba(28,31,34,.45); z-index: 20; display: flex; align-items: flex-start; justify-content: center; padding: 4vh 12px; }
+.picker { width: min(640px, 100%); max-height: 90vh; display: flex; flex-direction: column; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.chips button { padding: 4px 10px; font-size: 13px; background: transparent; color: var(--ink); border-color: var(--rule); }
+.chips button.on { background: var(--soft-accent); color: var(--accent); border-color: var(--accent); }
+.pk-list { overflow-y: auto; margin-top: 6px; border-top: 1px solid var(--line); }
+.pk-item { display: flex; justify-content: space-between; gap: 10px; width: 100%; text-align: left; background: transparent; color: var(--ink); border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 10px 4px; font-family: var(--serif); letter-spacing: 0; text-transform: none; font-size: 16px; }
+.pk-item span { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.pk-item.new { color: var(--accent); }
+.routine { display: flex; gap: 10px; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding: 8px 0; }

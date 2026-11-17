@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Log · Steadfast Health</title>
-<link rel="stylesheet" href="style.css?v=6">
+<link rel="stylesheet" href="style.css?v=7">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#7a4219">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,16 +15,43 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
 <script src="data/library.js?v=6"></script>
-<script src="js/store.js?v=6"></script>
-<script src="js/engine.js?v=6"></script>
-<script src="js/api.js?v=6"></script>
+<script src="js/store.js?v=8"></script>
+<script src="js/engine.js?v=7"></script>
+<script src="js/api.js?v=7"></script>
 <script src="js/app.js?v=6"></script>
+<script src="data/exercises.js?v=1"></script>
 </head>
 <body>
 <main>
   <h1>Log <span class="muted small"><input type="date" id="date" style="font-size:15px;padding:4px 8px"></span></h1>
   <div id="msg" class="msg" style="display:none"></div>
+  <div class="tabs" id="kind-tabs">
+    <button type="button" class="active" data-tab="weights">Weights</button>
+    <button type="button" data-tab="other">Other training</button>
+  </div>
 
+  <section id="tab-other" style="display:none">
+    <div class="card" style="margin-bottom:14px">
+      <h2>Log other training</h2>
+      <form id="act-form" class="act-form">
+        <label>What <select id="a-kind"></select></label>
+        <div><span class="lbl">Minutes</span><div class="stepper act-step">
+          <button type="button" onclick="actStep('a-min', -5)">−</button><input type="number" id="a-min" min="1" max="600" value="30" inputmode="numeric" onfocus="this.select()"><button type="button" onclick="actStep('a-min', 5)">+</button></div></div>
+        <div><span class="lbl">How hard</span><div class="seg" id="a-int">
+          <button type="button" data-v="easy">Easy</button><button type="button" data-v="moderate" class="on">Moderate</button><button type="button" data-v="hard">Hard</button></div></div>
+        <label id="a-dist-l">Distance (miles) <input type="number" id="a-dist" min="0" step="0.1" inputmode="decimal" placeholder="optional"></label>
+        <label style="grid-column:1/-1">Note <input id="a-note" placeholder="optional"></label>
+        <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center"><button type="submit">Save</button><span class="small muted" id="a-est"></span></div>
+      </form>
+      <p class="small muted" style="margin:8px 0 0">Calories are the extra burn above resting, estimated from your weight, the minutes and how hard it was (resting calories are already in the forecast). Twenty minutes or more counts as a workout day.</p>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <h2>Last two weeks</h2>
+      <div id="act-list"></div>
+    </div>
+  </section>
+
+  <section id="tab-weights">
   <div class="card" id="start-card" style="margin-bottom:14px">
     <h2 id="start-title">Start a workout</h2>
     <div class="starts" id="starts"></div>
@@ -35,7 +62,9 @@
     <summary style="cursor:pointer"><h2 style="display:inline">Your workouts</h2> <span class="muted small">exercises, sets and reps</span></summary>
     <div id="wk-edit" class="wk-edit" style="margin-top:10px"></div>
     <button class="ghost small" id="wk-new" style="margin-top:10px">New workout</button>
-    <p class="small muted" style="margin:10px 0 0">These names are what the rotation on the Training page uses. Rename a workout and its history follows.</p>
+    <button class="ghost small" id="wk-routine" style="margin-top:10px">Start from a routine</button>
+    <div id="routines" style="display:none;margin-top:10px"></div>
+    <p class="small muted" style="margin:10px 0 0">These names are what the rotation on the Training page uses. Rename a workout and its history follows. Pick exercises from the library, or type your own.</p>
   </details>
 
   <div id="sessions"></div>
@@ -51,7 +80,19 @@
     <p class="small muted" style="margin:8px 0 0">Kept on this device. While a workout is going the screen stays on, and the phone vibrates at the end of a rest where it can (Android; iPhone only beeps).</p>
   </details>
 
+  </section>
+
   <datalist id="ex-names"></datalist>
+
+  <div class="picker-wrap" id="picker" style="display:none">
+    <div class="picker card">
+      <div style="display:flex;gap:8px;align-items:center"><h2 style="flex:1;margin:0">Pick an exercise</h2><button type="button" class="ghost small" onclick="closePicker()">Close</button></div>
+      <input type="search" id="pk-q" placeholder="Search, or type a new one" style="width:100%;margin:8px 0">
+      <div class="chips" id="pk-group"></div>
+      <div class="chips" id="pk-eq"></div>
+      <div id="pk-list" class="pk-list"></div>
+    </div>
+  </div>
 </main>
 
 <div class="timer" id="timer" style="display:none">
@@ -150,6 +191,7 @@ function renderSession(s) {
     <div class="ex" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <input list="ex-names" id="addex-${ms}" placeholder="Another exercise" style="flex:1;min-width:160px">
       <button type="button" class="ghost small" onclick="addExercise(${ms})">Add exercise</button>
+      <button type="button" class="small" onclick="openPicker(n => { el('addex-${ms}').value = n; addExercise(${ms}); })">Pick from library</button>
     </div>
   </div>`;
 }
@@ -341,7 +383,8 @@ function renderEditor() {
         <span class="mv"><button type="button" class="ghost small" onclick="moveEx(${jsArg(name)}, ${i}, -1)">▲</button><button type="button" class="ghost small" onclick="moveEx(${jsArg(name)}, ${i}, 1)">▼</button><button type="button" class="small danger" onclick="editing[${jsArg(name)}].exercises.splice(${i}, 1); renderEditor()">✕</button></span>
       </div>`).join("")}
       <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button type="button" class="ghost small" onclick="editing[${jsArg(name)}].exercises.push({exercise: '', target_sets: 3, target_reps: 10}); renderEditor()">Add exercise</button>
+        <button type="button" class="small" onclick="openPicker(n => { editing[${jsArg(name)}].exercises.push({exercise: n, target_sets: 3, target_reps: 10}); renderEditor(); })">Pick from library</button>
+        <button type="button" class="ghost small" onclick="editing[${jsArg(name)}].exercises.push({exercise: '', target_sets: 3, target_reps: 10}); renderEditor()">Type one</button>
         <span style="flex:1"></span>
         <button type="button" class="small" onclick="saveWorkout(${jsArg(name)})">Save</button>
         <button type="button" class="ghost small" onclick="delete editing[${jsArg(name)}]; renderEditor()">Cancel</button>
@@ -370,6 +413,88 @@ async function deleteWorkout(name) {
   if (!confirm(`Delete the workout "${name}"? Logged sessions keep their history.`)) return;
   try { await api(`/api/workouts/${encodeURIComponent(name)}`, { method: "DELETE" }); delete editing[name]; await load(); } catch (e) { flash("msg", e.message, "err"); }
 }
+// ---- the exercise library ----
+const LIBX = window.HT_EXERCISES;
+let pickCb = null, pkGroup = "", pkEq = "";
+function openPicker(cb) { pickCb = cb; pkGroup = pkEq = ""; el("pk-q").value = ""; el("picker").style.display = ""; renderPicker(); el("pk-q").focus(); }
+function closePicker() { el("picker").style.display = "none"; pickCb = null; }
+function chips(id, items, cur, setter) {
+  el(id).innerHTML = [["", "All"]].concat(items.map(x => [x, x])).map(([v, t]) => `<button type="button" class="${cur === v ? "on" : ""}" onclick="${setter}(${jsArg(v)})">${esc(t)}</button>`).join("");
+}
+function setGroup(v) { pkGroup = v; renderPicker(); }
+function setEq(v) { pkEq = v; renderPicker(); }
+function renderPicker() {
+  chips("pk-group", LIBX.groups, pkGroup, "setGroup"); chips("pk-eq", LIBX.equipment, pkEq, "setEq");
+  const q = el("pk-q").value.trim().toLowerCase();
+  const mine = (D ? D.exercises : []).filter(n => !LIBX.list.some(x => x[0] === n)).map(n => [n, "Yours", ""]);
+  const rows = LIBX.list.concat(mine).filter(x => (!pkGroup || x[1] === pkGroup) && (!pkEq || x[2] === pkEq) && (!q || x[0].toLowerCase().includes(q)));
+  const typed = q && !rows.some(x => x[0].toLowerCase() === q) ? `<button type="button" class="pk-item new" onclick="pick(${jsArg(el("pk-q").value.trim())})">Add “${esc(el("pk-q").value.trim())}” as my own</button>` : "";
+  el("pk-list").innerHTML = rows.map(x => `<button type="button" class="pk-item" onclick="pick(${jsArg(x[0])})"><strong>${esc(x[0])}</strong><span>${esc([x[1], x[2]].filter(Boolean).join(" · "))}</span></button>`).join("") + typed || `<p class="muted small">Nothing matches.</p>`;
+}
+function pick(name) { const cb = pickCb; closePicker(); if (cb) cb(name); }
+el("pk-q").addEventListener("input", renderPicker);
+el("picker").addEventListener("click", ev => { if (ev.target.id === "picker") closePicker(); });
+
+const ROTATION = { "Push / Pull / Legs (gym)": ["Push", "Pull", "Legs", "Push", "Pull", "Legs", "Rest"], "Upper / Lower": ["Upper", "Lower", "Rest", "Upper", "Lower", "Rest", "Rest"],
+  "Full body, three days": ["Full Body A", "Rest", "Full Body B", "Rest", "Full Body C", "Rest", "Rest"], "Dumbbells at home": ["Home Upper", "Home Lower", "Rest", "Home Upper", "Home Lower", "Rest", "Rest"] };
+el("wk-routine").addEventListener("click", () => {
+  const box = el("routines"); box.style.display = box.style.display ? "" : "none";
+  box.innerHTML = Object.entries(LIBX.routines).map(([r, ws]) => `<div class="routine"><div><strong>${esc(r)}</strong><div class="small muted">${Object.entries(ws).map(([w, ex]) => `${esc(w)}: ${ex.map(e => esc(e[0])).join(", ")}`).join("<br>")}</div></div>
+    <button type="button" class="small" onclick="useRoutine(${jsArg(r)})">Use this</button></div>`).join("");
+});
+async function useRoutine(r) {
+  const ws = LIBX.routines[r], have = D.workouts.map(w => w.workout), clash = Object.keys(ws).filter(w => have.includes(w));
+  if (clash.length && !confirm(`You already have ${clash.join(", ")}. Replace ${clash.length === 1 ? "it" : "them"} with this routine's version?`)) return;
+  try {
+    for (const [w, ex] of Object.entries(ws)) await api(`/api/workouts/${encodeURIComponent(w)}`, { method: "PUT", body: { exercises: ex.map(e => ({ exercise: e[0], target_sets: e[1], target_reps: e[2] })) } });
+    if (confirm("Use this routine's days for your weekly rotation too? (Training page; you can change it there.)")) await api("/api/settings", { method: "PATCH", body: { lift_rotation: ROTATION[r].join(",") } });
+    el("routines").style.display = "none"; flash("msg", `${r} added to your workouts.`); await load();
+  } catch (e) { flash("msg", e.message, "err"); }
+}
+
+// ---- other training ----
+let actKinds = [], actInt = "moderate";
+function showTab(t) {
+  document.querySelectorAll("#kind-tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === t));
+  el("tab-weights").style.display = t === "weights" ? "" : "none"; el("tab-other").style.display = t === "other" ? "" : "none";
+  history.replaceState(null, "", location.pathname + location.search + (t === "other" ? "#other" : ""));
+  if (t === "other") loadActs();
+}
+document.querySelectorAll("#kind-tabs button").forEach(b => b.addEventListener("click", () => showTab(b.dataset.tab)));
+function actStep(id, d) { const i = el(id); i.value = Math.max(1, Math.min(600, (+i.value || 0) + d)); estimate(); }
+document.querySelectorAll("#a-int button").forEach(b => b.addEventListener("click", () => { actInt = b.dataset.v; document.querySelectorAll("#a-int button").forEach(x => x.classList.toggle("on", x === b)); estimate(); }));
+async function estimate() {
+  const S = await HT.ready, k = el("a-kind").value, kind = actKinds.find(x => x.id === k);
+  el("a-dist-l").style.display = kind && kind.distance ? "" : "none";
+  const a = HT.E.assumptions(S), kc = HT.E.activityKcal(k, +el("a-min").value || 0, actInt, HT.E.latestWeight(S, a));
+  el("a-est").textContent = kc ? `about ${kc} kcal` : "";
+}
+async function loadActs() {
+  const r = await api(`/api/activities?to=${ds}`);
+  if (!actKinds.length) {
+    actKinds = r.kinds;
+    const groups = [...new Set(actKinds.map(k => k.group))];
+    el("a-kind").innerHTML = groups.map(g => `<optgroup label="${esc(g)}">${actKinds.filter(k => k.group === g).map(k => `<option value="${k.id}">${esc(k.name)}</option>`).join("")}</optgroup>`).join("");
+    estimate();
+  }
+  el("act-list").innerHTML = r.entries.length ? r.entries.map(x => `<div class="food-row"><div class="name"><strong>${esc(x.name)}</strong> <span class="muted small">${fmtDate(x.date)}</span>
+      <div class="meta">${x.minutes} min, ${x.intensity}${x.distance ? `, ${x.distance} mi` : ""} · about ${x.kcal} kcal${x.note ? " · " + esc(x.note) : ""}</div></div>
+      <button class="small danger" onclick="dropAct(${x.id})">Delete</button></div>`).join("") : `<p class="muted" style="margin:0">Nothing logged in the last two weeks.</p>`;
+}
+async function dropAct(id) { if (!confirm("Delete this entry?")) return; await api(`/api/activities/${id}`, { method: "DELETE" }); loadActs(); }
+el("a-kind").addEventListener("change", estimate);
+el("a-min").addEventListener("input", estimate);
+el("act-form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  try {
+    const x = await api("/api/activities", { method: "POST", body: { date: ds, kind: el("a-kind").value, minutes: +el("a-min").value, intensity: actInt, distance: el("a-dist").value, note: el("a-note").value } });
+    el("a-note").value = ""; el("a-dist").value = "";
+    flash("msg", `Saved: ${x.name}, ${x.minutes} min, about ${x.kcal} kcal.`); loadActs();
+  } catch (e) { flash("msg", e.message, "err"); }
+});
+if (location.hash === "#other") showTab("other");
+window.addEventListener("hashchange", () => showTab(location.hash === "#other" ? "other" : "weights"));
+
 el("wk-new").addEventListener("click", () => {
   let n = "New workout", i = 2; while (D.workouts.some(w => w.workout === n) || editing[n]) n = `New workout ${i++}`;
   editing[n] = { name: "", exercises: [{ exercise: "", target_sets: 3, target_reps: 10 }], isNew: true }; renderEditor();

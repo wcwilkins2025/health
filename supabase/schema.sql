@@ -137,6 +137,20 @@ create table if not exists public.meals_custom (
   primary key (user_id, meal_id)
 );
 
+-- Training that is not lifting: walks, runs, rides, swims, classes, sports. kcal is worked out from the person's weight.
+create table if not exists public.activities (
+  id        bigint generated always as identity primary key,
+  user_id   uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  date      date not null,
+  kind      text not null,
+  minutes   int not null check (minutes between 1 and 600),
+  intensity text not null default 'moderate',   -- easy | moderate | hard
+  distance  real,                                -- miles, when it has one
+  kcal      int not null default 0,
+  note      text not null default ''
+);
+create index if not exists activities_user_date on public.activities (user_id, date);
+
 -- What is in the kitchen right now.
 create table if not exists public.pantry (
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
@@ -177,7 +191,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['settings', 'weight_log', 'bp_log', 'foods_custom', 'meal_prefs', 'plans', 'gym_sets', 'gym_workouts', 'blog_posts', 'checkins', 'ai_messages', 'ai_cards', 'meals_custom', 'pantry'] loop
+  foreach t in array array['settings', 'weight_log', 'bp_log', 'foods_custom', 'meal_prefs', 'plans', 'gym_sets', 'gym_workouts', 'blog_posts', 'checkins', 'ai_messages', 'ai_cards', 'meals_custom', 'pantry', 'activities'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from anon', t);
     execute format('grant select, insert, update, delete on public.%I to authenticated', t);

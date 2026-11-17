@@ -454,6 +454,40 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     delete HT.aiCall;
   });
 
+  await section('13. Other training and the exercise library', async () => {
+    const { S, api } = fresh();
+    setNow('2026-11-18');
+    await api('PATCH', '/api/settings', { start_weight: 290, target_weight: 180, start_date: '2026-11-10', setup_done: '1' });
+    await api('POST', '/api/weight', { date: '2026-11-18', weight: 290 });
+    const a = await api('POST', '/api/activities', { date: '2026-11-18', kind: 'pickleball', minutes: 60, intensity: 'moderate' });
+    check('pickleball for an hour at 290 lb: about 480 kcal above resting', a.name === 'Pickleball' && a.kcal > 420 && a.kcal < 560, a.kcal);
+    const hard = await api('POST', '/api/activities', { date: '2026-11-17', kind: 'walk', minutes: 30, intensity: 'hard', distance: 1.8 });
+    const easy = E.activityKcal('walk', 30, 'easy', 290);
+    check('harder burns more; distance kept', hard.kcal > easy && hard.distance === 1.8);
+    await api('POST', '/api/activities', { date: '2026-11-16', kind: 'stretch', minutes: 10 });
+    check('bad entries refused', await throws(() => api('POST', '/api/activities', { kind: 'flying', minutes: 30 }), 422) &&
+      await throws(() => api('POST', '/api/activities', { kind: 'walk', minutes: 0 }), 422) && await throws(() => api('POST', '/api/activities', { kind: 'run', minutes: 30, distance: -2 }), 422));
+    const wk = await api('GET', '/api/training/week/2026-11-18');
+    const wed = wk.days[2].items.find(x => x.what === 'Activity');
+    check('the week shows it on the day it was done', wed && wed.name === 'Pickleball' && wed.status === 'done' && wk.days[2].kcal >= a.kcal);
+    check('20 minutes or more counts as a workout day; a 10-minute stretch does not', E.workoutDates(S).includes('2026-11-18') && E.workoutDates(S).includes('2026-11-17') && !E.workoutDates(S).includes('2026-11-16'));
+    const post = await api('GET', '/api/blog/2026-11-18');
+    check('the daily post mentions it', post.title.includes('pickleball') && post.body_md.includes('**Also:** Pickleball, 60 min'), post.body_md);
+    check('the coach sees it', E.coachContext(S).other_training_last_14_days.length === 3);
+    const list = await api('GET', '/api/activities?to=2026-11-18');
+    check('the last two weeks, newest first', list.entries[0].kind === 'pickleball' && list.kinds.length > 20);
+    await api('DELETE', `/api/activities/${a.id}`);
+    check('delete an entry', !S.db.activities.some(x => x.id === a.id) && await throws(() => api('DELETE', `/api/activities/${a.id}`), 404));
+    // the exercise library and its routines
+    const lib = {}; new Function('window', fs.readFileSync(path.join(root, 'data/exercises.js'), 'utf8'))(lib);
+    const X = lib.HT_EXERCISES, names = new Set(X.list.map(x => x[0]));
+    check('the library: 100+ exercises, every one with a known group and equipment, no repeats', X.list.length >= 100 && names.size === X.list.length &&
+      X.list.every(x => X.groups.includes(x[1]) && X.equipment.includes(x[2])), X.list.length);
+    check('every routine uses library exercises with sets and reps', Object.values(X.routines).every(r => Object.values(r).every(ex => ex.every(e => names.has(e[0]) && e[1] > 0 && e[2] > 0))));
+    for (const [w, ex] of Object.entries(X.routines['Upper / Lower'])) await api('PUT', `/api/workouts/${encodeURIComponent(w)}`, { exercises: ex.map(e => ({ exercise: e[0], target_sets: e[1], target_reps: e[2] })) });
+    check('a routine becomes your workouts', (await api('GET', '/api/workouts')).some(w => w.workout === 'Upper' && w.exercises.length === 6));
+  });
+
   console.log(failures ? `\n${failures} FAILED` : '\nAll checks pass.');
   process.exit(failures ? 1 : 0);
 })();
