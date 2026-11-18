@@ -991,7 +991,7 @@
     { name: 'Steadfast Health', url: 'https://steadfasthealth.org', what: 'It keeps weight, food, training and daily habits in one place, and it wrote this post from my own numbers.' },
     { name: 'Land Finder', url: 'https://thelandfinder.org', what: 'It scores counties for land, water, soil and cost, then checks a parcel before you buy it.' },
     { name: 'Groundwork', url: 'https://groundworkpath.org', what: 'It lays out a plan in stages from wherever you are today, even with no money and no experience, to living off a place of your own.' },
-    { name: 'Homestead Cost Calculator', url: 'https://wcwilkins2025.github.io/homestead-cost-calculator/', what: 'It adds up what a homestead costs to set up and run, what it can bring in, and when it pays for itself.' },
+    { name: 'Homestead Cost Calculator', url: 'https://homesteadcalculator.org', what: 'It adds up what a homestead costs to set up and run, what it can bring in, and when it pays for itself.' },
     { name: 'Prepare Me', url: 'https://preparemeapp.org', what: 'It builds a readiness plan from the risks where you actually live, free steps first.' },
     { name: 'Radio Elmer', url: 'https://radioelmer.org', what: 'It gets a ham radio programmed and on the air, so you can still talk when the phones cannot.' }
   ];
