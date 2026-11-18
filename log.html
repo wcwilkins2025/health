@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Log · Steadfast Health</title>
-<link rel="stylesheet" href="style.css?v=12">
+<link rel="stylesheet" href="style.css?v=13">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f4a32">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -77,7 +77,8 @@
       <label>Weight step (lb) <select id="c-step"><option value="1">1</option><option value="2.5">2.5</option><option value="5">5</option><option value="10">10</option></select></label>
     </div>
     <label class="check"><input type="checkbox" id="c-sound"> Beep when the rest is over</label>
-    <p class="small muted" style="margin:8px 0 0">Kept on this device. While a workout is going the screen stays on, and the phone vibrates at the end of a rest where it can (Android; iPhone only beeps).</p>
+    <label>Beep volume <span class="vol-row"><input type="range" id="c-vol" min="5" max="100" step="5"><span id="c-vol-v" class="small"></span><button type="button" class="small ghost" id="c-test">Test</button></span></label>
+    <p class="small muted" style="margin:8px 0 0">Kept on this device; the phone's own volume still sets the top. While a workout is going the screen stays on, and the phone vibrates at the end of a rest where it can (Android; iPhone only beeps).</p>
   </details>
 
   </section>
@@ -114,7 +115,7 @@ const LS = {
   get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } },
   set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} },
 };
-const cfg = () => ({ sets: Number(LS.get("wt_rest_seconds", 90)), ex: Number(LS.get("wt_rest_ex_seconds", 150)), step: Number(LS.get("wt_weight_step", 5)), sound: LS.get("wt_sound", "1") === "1" });
+const cfg = () => ({ sets: Number(LS.get("wt_rest_seconds", 90)), ex: Number(LS.get("wt_rest_ex_seconds", 150)), step: Number(LS.get("wt_weight_step", 5)), sound: LS.get("wt_sound", "1") === "1", vol: Number(LS.get("wt_volume", 40)) });
 const fmt = n => n == null || n === "" ? "" : Number(n);
 // a JS string literal safe inside an HTML attribute (the parser decodes the entities before JS sees it)
 const jsArg = x => esc(JSON.stringify(x));
@@ -356,7 +357,7 @@ function beep() {
     [0, 0.3, 0.6].forEach(t => {
       const o = actx.createOscillator(), g = actx.createGain(), at = actx.currentTime + t;
       o.frequency.value = 880; o.connect(g); g.connect(actx.destination);
-      g.gain.setValueAtTime(0.4, at); g.gain.exponentialRampToValueAtTime(0.001, at + 0.22);
+      g.gain.setValueAtTime(Math.min(1, Math.max(0.05, cfg().vol / 100)), at);   // the volume setting, from soft to full g.gain.exponentialRampToValueAtTime(0.001, at + 0.22);
       o.start(at); o.stop(at + 0.24);
     });
   } catch (e) {}
@@ -371,10 +372,13 @@ async function keepAwake(on) {
 }
 
 // ---- timer and step settings, kept on this device ----
-function loadCfg() { const c = cfg(); el("c-sets").value = c.sets; el("c-ex").value = c.ex; el("c-step").value = String(c.step); el("c-sound").checked = c.sound; }
+function loadCfg() { const c = cfg(); el("c-sets").value = c.sets; el("c-ex").value = c.ex; el("c-step").value = String(c.step); el("c-sound").checked = c.sound; el("c-vol").value = c.vol; el("c-vol-v").textContent = c.vol + "%"; }
 el("c-sets").addEventListener("change", e => { if (+e.target.value >= 10) LS.set("wt_rest_seconds", Math.round(+e.target.value)); loadCfg(); tick(); });
 el("c-ex").addEventListener("change", e => { if (+e.target.value >= 10) LS.set("wt_rest_ex_seconds", Math.round(+e.target.value)); loadCfg(); tick(); });
 el("c-step").addEventListener("change", e => LS.set("wt_weight_step", e.target.value));
+el("c-vol").addEventListener("input", e => { LS.set("wt_volume", e.target.value); el("c-vol-v").textContent = e.target.value + "%"; });
+el("c-vol").addEventListener("change", () => { unlockAudio(); if (cfg().sound) beep(); });
+el("c-test").addEventListener("click", () => { unlockAudio(); if (!cfg().sound) { flash("msg", "Beeps are off; tick Beep when the rest is over."); return; } beep(); });
 el("c-sound").addEventListener("change", e => { LS.set("wt_sound", e.target.checked ? "1" : "0"); if (e.target.checked) { unlockAudio(); beep(); } });
 loadCfg();
 
