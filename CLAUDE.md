@@ -30,4 +30,4 @@ Static site on GitHub Pages (`wcwilkins2025/health`, Pages from `main` at the ro
 
 ## Checks
 
-`npm test` (engine and router over the memory store; sql.js for the imports). Preview: `python -m http.server 8792` in this folder, open `http://localhost:8792` — with no Supabase values in `config.js` it runs as one local person in that browser.
+`npm test` (engine and router over the memory store; sql.js for the imports). Row rules: `MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- sh /mnt/c/Projects/health/supabase/tests/run_rls.sh` (throwaway Postgres in WSL, two users, every own-rows table; add a new table to its list when it joins the schema). Preview: `python -m http.server 8792` in this folder, open `http://localhost:8792` — with no Supabase values in `config.js` it runs as one local person in that browser.
