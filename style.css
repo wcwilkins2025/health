@@ -333,3 +333,11 @@ body.has-bar main { padding-bottom: 120px; }
 .front-list strong { color: var(--heading); }
 .front-cta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
 .front-cta button { padding: 12px 18px; font-size: 16px; }
+
+/* the rest countdown inside the exercise being done */
+.rest-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 10px; padding: 10px 14px; border-radius: var(--radius); background: var(--band); color: var(--band-fg); }
+.rest-inline small { display: block; font-family: var(--serif); font-size: 14px; opacity: .85; }
+.rest-inline .big { font-family: var(--display); font-weight: 700; font-size: clamp(38px, 6vw, 56px); line-height: 1; letter-spacing: .04em; }
+.rest-inline.done { background: var(--green); color: var(--card); }
+.rest-inline .ri-btns { display: flex; gap: 6px; }
+.rest-inline .ri-btns button { background: transparent; color: inherit; border-color: currentColor; padding: 10px 14px; font-size: 16px; }

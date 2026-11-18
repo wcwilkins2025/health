@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Log · Steadfast Health</title>
-<link rel="stylesheet" href="style.css?v=11">
+<link rel="stylesheet" href="style.css?v=12">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f4a32">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -215,7 +215,10 @@ function renderOpen(s, x) {
       <span>${st.weight == null ? "body" : fmt(st.weight) + " lb"} × ${st.reps ?? "?"}${st.note ? `<span class="note">${esc(st.note)}</span>` : ""}</span><span class="ed">Edit</span></div>`).join("")}
     ${editing ? "" : `<div class="entry">${stepper("weight", key, v.weight)}${stepper("reps", key, v.reps)}</div>
     ${lastAt ? `<div class="small muted" style="margin-top:6px">${lastAt}</div>` : ""}
-    <div class="entry-actions"><button type="button" class="logset" onclick="logSet(${ms}, ${jsArg(x.name)}, 1)">Log set ${n + 1}</button>${left > 1 ? `<button type="button" class="ghost" onclick="logSet(${ms}, ${jsArg(x.name)}, ${left})">Log all ${left}</button>` : ""}</div>`}
+    <div class="entry-actions"><button type="button" class="logset" onclick="logSet(${ms}, ${jsArg(x.name)}, 1)">Log set ${n + 1}</button>${left > 1 ? `<button type="button" class="ghost" onclick="logSet(${ms}, ${jsArg(x.name)}, ${left})">Log all ${left}</button>` : ""}</div>
+    <div class="rest-inline" id="rest-inline" style="display:none"><div><small id="ri-label"></small><span class="big" id="ri-time"></span></div>
+      <div class="ri-btns" id="ri-run"><button type="button" onclick="addRest(-15)">−15</button><button type="button" onclick="addRest(15)">+15</button><button type="button" onclick="skipRest()">Skip</button></div>
+      <div class="ri-btns" id="ri-done" style="display:none"><button type="button" onclick="skipRest()">OK</button></div></div>`}
   </div>`;
 }
 
@@ -329,6 +332,16 @@ function tick() {
   bar.classList.toggle("done", done);
   show("t-run", left !== null && !done); show("t-done", done); show("t-idle", left === null);
   if (left === null) { text("t-label", "Rest timer"); text("t-rest", ""); text("t-sets", mmss(cfg().sets)); text("t-ex", mmss(cfg().ex)); }
+  const ri = el("rest-inline");   // the same countdown, big, right under the exercise being done
+  if (ri) {
+    ri.style.display = left === null ? "none" : "";
+    if (left !== null) {
+      ri.classList.toggle("done", done);
+      text("ri-label", done ? `Go · ${restLabel}` : `Rest · ${restLabel}`);
+      text("ri-time", done ? "Go" : mmss(Math.ceil(left)));
+      el("ri-run").style.display = done ? "none" : ""; el("ri-done").style.display = done ? "" : "none";
+    }
+  }
   else { text("t-label", done ? `Go · ${restLabel}` : `Rest · ${restLabel}`); text("t-rest", done ? "Go" : mmss(Math.ceil(left))); }
 }
 setInterval(tick, 250);
