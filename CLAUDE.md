@@ -16,7 +16,7 @@ Static site on GitHub Pages (`wcwilkins2025/health`, Pages from `main` at the ro
 - Kitchen: likes and dislikes are `foods_custom.data.pref` (dislike and allergy turn the food red), on-hand foods are `pantry`, recipes a person adds are `meals_custom` (ids `u-meal-…`, merged into `E.meals`). Planning `pantry_from: 'kitchen'` uses on-hand foods plus `E.STAPLES`; the planner leans toward liked foods.
 - Training beyond lifting: `activities` (kind, minutes, intensity, distance, kcal = extra burn above resting from `E.ACTIVITIES` METs and the latest weight). Shown in the week as `what: Activity`, 20 min or more counts as a workout day, in the blog and the coach context. `data/exercises.js` is the exercise library (group, equipment) and starter routines for the Log page picker.
 - `js/store.js` load skips a table the database does not have yet (PGRST205), so a page newer than the schema still opens.
-- Open sign-up: `account.html` is the signed-out front page (what it does, Create account via `signUp`, sign in). Link previews (og/twitter tags, `og-image.png`) on `index.html` and `account.html`.
+- Open sign-up: `account.html` is the signed-out front page (what it does, Create account, Sign in). Both email a 6-digit code (`signInWithOtp`, `shouldCreateUser` true only for Create account) checked with `verifyOtp` type `email`; no passwords, no links in the emails. The pending email is kept an hour in localStorage so a phone reload keeps the code box. Link previews (og/twitter tags, `og-image.png`) on `index.html` and `account.html`.
 - `supabase/schema.sql` tables, one "own rows" policy per table, `delete_me()`.
 - Plan day and slot ids are numbers made from the plan id: day = plan*10 + day index, slot = plan*100 + day*10 + slot index.
 

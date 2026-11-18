@@ -10,7 +10,9 @@ Four steps, about 20 minutes. Use a personal Supabase account.
 4. **Authentication → URL Configuration**:
    - Site URL: `https://steadfasthealth.org/account.html`
    - Redirect URLs: add `https://steadfasthealth.org/account.html` and, for checking changes on the PC, `http://localhost:8792/account.html`.
-   Invite, sign-in-link and password-reset emails all land on `account.html`, which finishes the step and opens the app.
+   Sign-in is a 6-digit emailed code typed on `account.html`; there are no passwords and no links in the emails (work mail and some phones open every link to check it, which used up the sign-in).
+   - **Authentication → Sign In / Providers → Email**: Email OTP length **6**.
+   - **Authentication → Emails → Templates**, both **Magic link or OTP** and **Confirm sign up**: subject `Your Steadfast Health code: {{ .Token }}`, body with the code large and no `{{ .ConfirmationURL }}` and no link at all.
 5. **Project Settings → API Keys**: copy the **Project URL** and the **publishable** key (starts `sb_publishable_`, or the legacy `anon` key). Both are public by design.
 
 ## 2. Point the site at it
@@ -19,14 +21,13 @@ Put the two values in `config.js`, commit and push. GitHub Pages republishes in 
 
 ## 3. Your own account, and your old data
 
-1. **Authentication → Users → Add user → Create new user**: your email and a password, tick **Auto confirm**.
-2. Open `https://steadfasthealth.org/`, sign in.
+1. Open `https://steadfasthealth.org/`, choose **Create a free account**, type your email and the 6-digit code from the email.
 3. The welcome page asks for your numbers. To bring over everything from the old app instead, skip it by going straight to **account.html**, pick the old database file under **Bring in old data** (`C:\Projects\weight-target\data\users\1.db`) and press **Import**. Weigh-ins, blood pressure, plans and shopping checks, workouts, settings and blog notes come over. Paths on the old PC and the Bring! login do not.
 4. On the phone: open the address, sign in, then Share → **Add to Home Screen** (iPhone) or the browser menu → **Install app** (Android).
 
 ## 4. Inviting someone
 
-**Authentication → Users → Invite user**, type their email. They get a link, choose a password on `account.html`, fill in the welcome page, and start with their own empty log. Each person's rows are theirs alone.
+**Authentication → Users → Invite user**, type their email. The invite makes their account, so they can ignore its link: they open the site, choose Sign in and type the 6-digit code. They fill in the welcome page and start with their own empty log. Each person's rows are theirs alone.
 
 The free tier's mailer sends a few emails an hour: enough for invites, not for a public launch. Before inviting the public, add custom SMTP under **Authentication → Emails** (for example a free Resend account with the domain verified in Cloudflare).
 

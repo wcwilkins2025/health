@@ -31,7 +31,7 @@ The AI runs in a Supabase Edge Function (`supabase/functions/ai`): `core.js` hol
 | `kitchen.html` | The kitchen helper interviews you about likes and dislikes and writes recipes for your diet; tick what's on hand to get recipes or a week's plan from it. |
 | `code-builder.html` | Builds your My Code in an interview, in your own words. |
 | `ai-setup.html` | The owner picks the AI (Claude, Grok, Groq, Gemini, OpenAI), pastes a key, sets the cost tier and daily limit. |
-| `account.html` | Sign in, password, import old data, My Code, download everything, delete the account. |
+| `account.html` | Sign in or create an account with a 6-digit emailed code, import old data, My Code, download everything, delete the account. |
 
 ## Running it
 

@@ -54,35 +54,25 @@
       <p class="small muted" style="margin:12px 0 0">Your numbers are yours: each account sees only its own data, and you can download or delete it any time. <a href="privacy.html">What is kept</a>. A personal tool, not medical advice; blood pressure and blood sugar medicine changes go through your doctor.</p>
     </section>
 
-    <form id="signup" style="display:none">
-      <p style="margin:0">Create your free account.</p>
-      <label>Email <input type="email" id="su-email" autocomplete="username" required></label>
-      <label>Password <input type="password" id="su-password" autocomplete="new-password" minlength="8" required></label>
-      <button type="submit">Create account</button>
-      <div class="links"><button type="button" id="su-back">I already have an account</button></div>
-      <p class="small muted" style="margin:10px 0 0">We'll email you a link to confirm the address. <a href="privacy.html">What is kept</a>.</p>
-    </form>
-
     <form id="signin" style="display:none">
+      <p style="margin:0" id="si-lead">No password. Type your email and we send you a 6-digit code.</p>
       <label>Email <input type="email" id="email" autocomplete="username" required></label>
-      <label>Password <input type="password" id="password" autocomplete="current-password"></label>
-      <button type="submit">Sign in</button>
-      <div class="links">
-        <button type="button" id="magic">Email me a sign-in link instead</button>
-        <button type="button" id="forgot">Forgot password</button>
-      </div>
-      <p class="small muted" style="margin:10px 0 0">New here? <a href="#" id="to-signup">Create a free account</a>. <a href="privacy.html">What is kept</a>.</p>
+      <button type="submit" id="send">Email me a code</button>
+      <div class="links"><button type="button" id="si-switch">New here? Create a free account</button></div>
+      <p class="small muted" style="margin:10px 0 0"><a href="privacy.html">What is kept</a>.</p>
     </form>
 
-    <form id="setpw" style="display:none">
-      <p style="margin:0">Choose a password for your account.</p>
-      <label>New password <input type="password" id="newpw" autocomplete="new-password" minlength="8" required></label>
-      <button type="submit">Save and continue</button>
+    <form id="codeform" style="display:none">
+      <p style="margin:0">Check your email for a 6-digit code from Steadfast Health and type it here. Look in the junk folder if it is not there in a minute.</p>
+      <label>The 6-digit code <input id="code" type="text" required inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="12" placeholder="123456" style="font-size:24px;letter-spacing:.2em;font-variant-numeric:tabular-nums"></label>
+      <p class="small muted" style="margin:0" id="code-hint"></p>
+      <button type="submit" id="verify">Sign in</button>
+      <div class="links"><button type="button" id="resend">Send a new code</button><button type="button" id="other">Use a different email</button></div>
     </form>
 
     <div id="signed" style="display:none">
       <p style="margin:0">Signed in as <strong id="who"></strong>. <a href="index.html">Open the app</a> · <a href="ai-setup.html">AI setup</a></p>
-      <div class="links" style="margin:10px 0 16px"><button type="button" id="signout">Sign out</button><button type="button" id="changepw">Change password</button></div>
+      <div class="links" style="margin:10px 0 16px"><button type="button" id="signout">Sign out</button></div>
 
       <h2>Bring in old data</h2>
       <p class="small" style="margin:0 0 6px">Pick a database file. The old Weight Target app's file (<code>data/users/1.db</code> or <code>data/weight-target.db</code>) <strong>replaces</strong> everything in this account with what it holds. A Gym ACE database adds its workouts to your log.</p>
@@ -106,60 +96,78 @@
 <script>
 const qs = new URLSearchParams(location.search);
 const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
-const linkType = hash.get("type");
 const next = /^[a-z]+\.html/.test(qs.get("next") || "") ? qs.get("next") : "index.html";
+const onFront = () => !qs.get("next") || qs.get("next") === "index.html";
 function msg(text, kind = "err") { const m = el("msg"); m.className = "msg " + kind; m.textContent = text; m.style.display = text ? "block" : "none"; }
 function show(id) {
-  el("card").classList.toggle("wide", id === "signin" && (!qs.get("next") || qs.get("next") === "index.html"));
-  for (const x of ["front", "signup", "signin", "setpw", "signed", "unconfigured", "working"]) el(x).style.display = x === id || (id === "signin" && x === "front" && (!qs.get("next") || qs.get("next") === "index.html")) ? "" : "none";
+  const front = (id === "signin") && onFront();
+  el("card").classList.toggle("wide", front);
+  for (const x of ["front", "signin", "codeform", "signed", "unconfigured", "working"]) el(x).style.display = x === id || (front && x === "front") ? "" : "none";
 }
 const back = location.origin + location.pathname;
+
+/* Sign in with a 6-digit code, no password and no link. The email carries only the code: work mail and some phones
+   open every link in an email to check it, and that used up the sign-in before the person could. The pending email
+   is kept for an hour, so a phone that reloads this page while the person reads their mail still shows the code box. */
+const PENDING = "st-pending-signin";
+let creating = false;   // Create account may make a new account; Sign in never does
+function pending() { try { const p = JSON.parse(localStorage.getItem(PENDING) || "null"); return p && Date.now() - p.at < 3600e3 ? p : null; } catch (e) { return null; } }
+function setPending(p) { try { p ? localStorage.setItem(PENDING, JSON.stringify(p)) : localStorage.removeItem(PENDING); } catch (e) {} }
+function mode(create) {
+  creating = create;
+  el("si-lead").textContent = create ? "Create your free account. Type your email and we send you a 6-digit code; typing it makes the account." : "No password. Type your email and we send you a 6-digit code.";
+  el("send").textContent = create ? "Create account" : "Email me a code";
+  el("si-switch").textContent = create ? "I already have an account" : "New here? Create a free account";
+}
+function codeBox(p) { el("code-hint").textContent = "Sent to " + p.email + ". Use the code from the newest email."; el("code").value = ""; show("codeform"); el("code").focus(); }
 
 (async () => {
   if (!HT.sb) { show("unconfigured"); return; }
   const sb = HT.sb;
-  sb.auth.onAuthStateChange(event => { if (event === "PASSWORD_RECOVERY") show("setpw"); });
+  const linkErr = hash.get("error_code") || hash.get("error") || qs.get("error_code") || qs.get("error");
   const { data: { session } } = await sb.auth.getSession();
-  if (session && (linkType === "invite" || linkType === "recovery" || qs.get("reset"))) show("setpw");
-  else if (session && qs.get("next")) location.replace(next);
-  else if (session) { el("who").textContent = session.user.email; show("signed"); }
-  else show(qs.get("signup") ? "signup" : "signin");
-  el("go-signup").addEventListener("click", () => { show("signup"); el("su-email").focus(); });
-  el("go-signin").addEventListener("click", () => { el("email").focus(); });
-  el("to-signup").addEventListener("click", ev => { ev.preventDefault(); show("signup"); el("su-email").focus(); });
-  el("su-back").addEventListener("click", () => show("signin"));
-  el("signup").addEventListener("submit", async ev => {
-    ev.preventDefault(); msg("");
-    const { data, error } = await sb.auth.signUp({ email: el("su-email").value.trim(), password: el("su-password").value, options: { emailRedirectTo: back + "?next=welcome.html" } });
-    if (error) { msg(/rate limit/i.test(error.message) ? "Too many sign-ups right now; try again in an hour." : error.message); return; }
-    if (data.session) { location.replace("welcome.html"); return; }
-    msg("Check your email: the link in it confirms your address and opens the app.", "ok");
-  });
+  if (session && qs.get("next")) { setPending(null); location.replace(next); return; }
+  if (session) { setPending(null); el("who").textContent = session.user.email; show("signed"); }
+  else if (pending()) codeBox(pending());
+  else { mode(!!qs.get("signup")); show("signin"); }
+  if (!session && linkErr) msg("That link from an older email no longer works. Sign in with a code instead: type your email and we send you a 6-digit code.");
 
+  async function send(email, create) {
+    const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: create, emailRedirectTo: back + "?next=" + encodeURIComponent(create ? "welcome.html" : next) } });
+    if (error) {
+      if (error.status === 429 || /rate limit|security purposes/i.test(error.message)) msg("A code already went out a moment ago. Use the code in that email, or wait a minute and send a new one.");
+      else if (/signups? not allowed|not found|no user/i.test(error.message)) msg("There is no account for that email yet. Choose Create a free account.");
+      else msg(error.message);
+      return false;
+    }
+    setPending({ email, create, at: Date.now() });
+    return true;
+  }
+  el("go-signup").addEventListener("click", () => { mode(true); show("signin"); el("email").focus(); });
+  el("go-signin").addEventListener("click", () => { mode(false); show("signin"); el("email").focus(); });
+  el("si-switch").addEventListener("click", () => { mode(!creating); msg(""); el("email").focus(); });
   el("signin").addEventListener("submit", async ev => {
     ev.preventDefault(); msg("");
-    const { error } = await sb.auth.signInWithPassword({ email: el("email").value.trim(), password: el("password").value });
-    if (error) { msg(error.message); return; }
-    location.replace(next);
+    const email = el("email").value.trim(); if (!email) return;
+    el("send").disabled = true;
+    if (await send(email, creating)) { codeBox(pending()); msg("Sent. Check your email for the 6-digit code.", "ok"); }
+    el("send").disabled = false;
   });
-  el("magic").addEventListener("click", async () => {
-    const email = el("email").value.trim(); if (!email) { msg("Type your email first."); return; }
-    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: back + "?next=" + encodeURIComponent(next), shouldCreateUser: false } });
-    msg(error ? error.message : "Check your email for the sign-in link.", error ? "err" : "ok");
+  el("codeform").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const p = pending(), code = el("code").value.replace(/\D/g, "");
+    if (!p) { msg("That took more than an hour. Send a new code."); mode(false); show("signin"); return; }
+    if (code.length < 6) { msg("Type all 6 digits of the code."); return; }
+    el("verify").disabled = true; msg("Checking the code…", "ok");
+    const { error } = await sb.auth.verifyOtp({ email: p.email, token: code, type: "email" });
+    el("verify").disabled = false;
+    if (error) { msg("That code did not work. Use the code from the newest email; older codes stop working when a new one is sent, and every code stops after an hour."); return; }
+    setPending(null);
+    location.replace(p.create ? "welcome.html" : next);
   });
-  el("forgot").addEventListener("click", async () => {
-    const email = el("email").value.trim(); if (!email) { msg("Type your email first."); return; }
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: back + "?reset=1" });
-    msg(error ? error.message : "Check your email for the reset link.", error ? "err" : "ok");
-  });
-  el("setpw").addEventListener("submit", async ev => {
-    ev.preventDefault(); msg("");
-    const { error } = await sb.auth.updateUser({ password: el("newpw").value });
-    if (error) { msg(error.message); return; }
-    location.replace("index.html");
-  });
+  el("resend").addEventListener("click", async () => { const p = pending(); if (!p) { show("signin"); return; } msg(""); if (await send(p.email, p.create)) { codeBox(pending()); msg("A new code is on its way. Use the code from the newest email.", "ok"); } });
+  el("other").addEventListener("click", () => { setPending(null); msg(""); mode(creating); show("signin"); el("email").focus(); });
   el("signout").addEventListener("click", async () => { await sb.auth.signOut(); location.replace("account.html"); });
-  el("changepw").addEventListener("click", () => show("setpw"));
 
   el("import").addEventListener("click", async () => {
     const f = el("file").files[0]; if (!f) { msg("Pick a file first."); return; }
