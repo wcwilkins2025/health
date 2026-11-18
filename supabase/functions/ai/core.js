@@ -10,7 +10,7 @@ export const PROVIDERS = {
   groq: { name: 'Groq', kind: 'openai', baseUrl: 'https://api.groq.com/openai/v1', keyUrl: 'https://console.groq.com/keys', where: 'console.groq.com',
     note: 'Free to start. Runs open models on fast chips. Not the same company as Grok.',
     steps: ['Go to console.groq.com and sign in.', 'API Keys: Create API Key. Copy it.', 'Paste it in Quick setup; the app picks a model that can use the buttons.'] },
-  gemini: { name: 'Google Gemini', kind: 'openai', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', keyUrl: 'https://aistudio.google.com/apikey', where: 'aistudio.google.com',
+  gemini: { name: 'Google Gemini', kind: 'openai', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', keyUrl: 'https://aistudio.google.com/apikey', where: 'aistudio.google.com', defaultModel: 'gemini-flash-lite-latest',
     note: 'Free to start. On the free tier Google may use what is sent to improve its products.',
     steps: ['Go to aistudio.google.com and sign in with a Google account.', 'Get API key: Create API key. Copy it.', 'Paste it in Quick setup.'] },
   xai: { name: 'Grok (xAI)', kind: 'openai', baseUrl: 'https://api.x.ai/v1', keyUrl: 'https://console.x.ai', where: 'console.x.ai', defaultModel: 'grok-latest',
@@ -29,10 +29,14 @@ const CLAUDE_EFFORT = new Set([...CLAUDE_FALLBACK, 'claude-haiku-5-5']);
 const PREFER = {
   groq: { low: ['gpt-oss-20b', 'llama-3.1-8b', 'gpt-oss-120b', 'llama-3.3-70b'], balanced: ['gpt-oss-120b', 'llama-3.3-70b'], best: ['gpt-oss-120b', 'llama-3.3-70b'] },
   openai: { low: ['nano', 'mini'], balanced: ['mini'], best: ['gpt-5', 'gpt-4.1'] },
-  gemini: { low: ['flash-lite', 'flash'], balanced: ['flash'], best: ['pro', 'flash'] },
-  xai: { low: ['mini', 'fast'], balanced: ['fast', 'grok-latest'], best: ['grok-latest'] },
+  gemini: { low: ['flash-lite-latest', 'flash-latest', 'flash-lite', 'flash'], balanced: ['flash-latest', 'flash'], best: ['pro-latest', 'pro', 'flash-latest'] },
+  xai: { low: ['mini', 'fast'], balanced: ['fast', 'grok-latest'], best: ['grok-latest', 'grok-4'] },
 };
-const NOT_CHAT = ['embed', 'whisper', 'tts', 'audio', 'image', 'vision', 'guard', 'moderation', 'transcribe', 'realtime', 'search', 'coder', 'code'];
+// models that cannot hold a chat with tools (Google alone lists dozens: question answering, research agents, speech, music, images, robots)
+const NOT_CHAT = ['embed', 'whisper', 'tts', 'audio', 'image', 'vision', 'guard', 'moderation', 'transcribe', 'realtime', 'search', 'coder', 'code',
+  'aqa', 'antigravity', 'research', 'computer-use', 'live', 'robotics', 'lyria', 'banana', 'translate', 'decision', 'veo', 'imagen'];
+export function isChat(m) { const x = String(m).toLowerCase(); return !NOT_CHAT.some(w => x.includes(w)); }
+const unstable = m => /preview|exp|-\d{2}-\d{4}|\d{4}-\d{2}-\d{2}/i.test(m);
 const KEY_PREFIXES = [['sk-ant-', 'anthropic'], ['xai-', 'xai'], ['gsk_', 'groq'], ['AIza', 'gemini'], ['sk-', 'openai']];
 export const HISTORY_SENT = 12, MAX_OUTPUT = 4000, DEFAULT_DAILY_LIMIT = 25;
 
@@ -63,13 +67,14 @@ export function pickModel(provider, models, tier) {
     return !models.length || models.includes(want) ? want : (models.find(m => m.includes('haiku')) || models[0]);
   }
   if (provider === 'xai' && tier !== 'low' && models.includes('grok-latest')) return 'grok-latest';
-  const chat = models.filter(m => !NOT_CHAT.some(w => m.toLowerCase().includes(w)));
+  const chat = models.filter(isChat);
   const pool = chat.length ? chat : models;
   for (const word of ((PREFER[provider] || {})[tier] || [])) {
-    const hit = pool.filter(m => m.toLowerCase().includes(word)).sort((a, b) => a.length - b.length);
+    const hit = pool.filter(m => m.toLowerCase().includes(word)).sort((a, b) => (unstable(a) - unstable(b)) || a.length - b.length);
     if (hit.length) return hit[0];
   }
-  return (PROVIDERS[provider] && PROVIDERS[provider].defaultModel) || pool[0] || '';
+  const def = PROVIDERS[provider] && PROVIDERS[provider].defaultModel;
+  return (def && (!models.length || models.includes(def)) ? def : '') || pool.filter(m => !unstable(m))[0] || pool[0] || def || '';
 }
 /** What the owner's setup page may see: never a key, only that one is there and its last four characters. */
 export function publicConfig(cfg, usage) {

@@ -383,6 +383,11 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     check('low tier: Claude Haiku; cheapest capable elsewhere', core.modelFor(core.defaults({}), 'anthropic') === 'claude-haiku-5-5' &&
       core.pickModel('groq', ['whisper-large-v3', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'], 'low') === 'openai/gpt-oss-20b' &&
       core.pickModel('gemini', ['x-pro', 'x-flash', 'x-flash-lite', 'text-embedding'], 'low') === 'x-flash-lite');
+    {
+      const g = ['aqa', 'antigravity-preview-latest', 'deep-research-preview-04-2026', 'gemini-2.5-flash-lite', 'gemini-3.1-flash-lite-preview', 'gemini-3.5-flash-lite', 'gemini-embedding-001', 'gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-pro-latest', 'gemini-3.8-live', 'lyria-3.5'];
+      check('Gemini: the always-current low-cost model, never aqa or a preview', core.pickModel('gemini', g, 'low') === 'gemini-flash-lite-latest' && core.pickModel('gemini', g, 'balanced') === 'gemini-flash-latest' && core.pickModel('gemini', g, 'best') === 'gemini-pro-latest' &&
+        core.pickModel('gemini', ['aqa', 'gemini-3.1-flash-lite-preview', 'gemini-3.5-flash-lite'], 'low') === 'gemini-3.5-flash-lite' && core.pickModel('gemini', ['aqa', 'zz-chat'], 'low') === 'zz-chat' && !core.isChat('aqa') && core.isChat('gemini-flash-latest'));
+    }
     const cfg = core.defaults({ provider: 'anthropic', keys: { anthropic: 'sk-ant-secret-1234' } });
     const pub = core.publicConfig(cfg, null);
     check('the setup page never sees a key', pub.configured && !JSON.stringify(pub).includes('sk-ant-secret') && pub.providers.find(p => p.id === 'anthropic').key_hint === '…1234');

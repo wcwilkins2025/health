@@ -88,7 +88,7 @@ function render() {
       ${p.has_key ? `<button type="button" class="small danger" id="forget">Remove key</button>` : ""}</div>
       <p class="small" id="test-out" style="margin:8px 0 0"></p>
     </form>`;
-  el("f").addEventListener("submit", ev => { ev.preventDefault(); save(); });
+  el("f").addEventListener("submit", ev => { ev.preventDefault(); test(); });   // saving always tests, so a model that cannot chat shows at once
   el("load").addEventListener("click", loadModels);
   el("test").addEventListener("click", test);
   if (el("forget")) el("forget").addEventListener("click", async () => { if (confirm("Remove the saved key for this provider?")) { P = await call({ action: "admin_update", provider: sel, clear_key: true }); render(); } });
@@ -102,14 +102,14 @@ async function save() {
 }
 async function loadModels() {
   if (el("key").value.trim() && !(await save())) return;
-  try { const r = await call({ action: "admin_models", provider: sel }); el("models").innerHTML = r.models.map(m => `<option value="${esc(m)}">`).join(""); flash("msg", `${r.models.length} models. Click the Model box to pick one, then Save.`); el("model").focus(); }
+  try { const r = await call({ action: "admin_models", provider: sel }); el("models").innerHTML = r.models.map(m => `<option value="${esc(m)}">`).join(""); flash("msg", `${r.models.length} chat models${r.recommended ? `; the low-cost pick, ${r.recommended}, is first` : ""}. Click the Model box to pick one, then Save.`); el("model").focus(); }
   catch (e) { flash("msg", e.message, "err"); }
 }
 async function test() {
   if (!(await save())) return;
   el("test-out").textContent = "Asking…";
-  try { const r = await call({ action: "admin_test" }); el("test-out").textContent = r.ok ? `Works. It said: "${r.reply}"` : "It answered with nothing; try another model."; }
-  catch (e) { el("test-out").textContent = ""; flash("msg", e.message, "err"); }
+  try { const r = await call({ action: "admin_test" }); el("test-out").textContent = r.ok ? `Saved and working. It said: "${r.reply}"` : "Saved, but it answered with nothing; try another model."; }
+  catch (e) { el("test-out").textContent = "Saved, but the test failed: " + e.message + " Try Load models and pick another, or use Quick setup."; }
 }
 el("quick").addEventListener("submit", async ev => {
   ev.preventDefault();

@@ -169,7 +169,9 @@ async function setupAction(op: string, cfg: any, save: (c: any) => Promise<void>
   } else if (op === "models") {
     const p = String(body.provider ?? "");
     if (!core.PROVIDERS[p]) throw new core.AIError("Unknown provider.", 422);
-    return { models: await core.listModels(cfg, p, deps) };
+    const all = await core.listModels(cfg, p, deps), chat = all.filter(core.isChat), best = core.pickModel(p, all, cfg.tier);
+    const list = chat.length ? chat : all;
+    return { models: best && list.includes(best) ? [best, ...list.filter(m => m !== best)] : list, recommended: best };
   } else if (op === "test") {
     const test = await core.testConnection(cfg, deps);
     await record(userId, "setup", cfg.provider, core.modelFor(cfg, cfg.provider), test.usage, billedTo);
