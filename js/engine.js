@@ -36,7 +36,7 @@
     setup_done: '0', start_weight: '250', target_weight: '200', start_date: '', sex: 'male', age: '50', height_in: '70',
     activity: 'sedentary', workouts_per_week: '', kcal_per_workout: '300', daily_kcal: '', water_loss_lb: '6', target_date: '',
     lift_rotation: 'Push,Pull,Legs,Push,Pull,Legs,Rest', walk_min_per_week: '0', bike_min_per_week: '0', walk_pace: 'brisk',
-    bike_pace: 'moderate', blog_title: 'The Weight Log', blog_intro: '', workout_goal_per_week: '6', gymace_last_sync: '',
+    bike_pace: 'moderate', blog_title: 'The Weight Log', blog_intro: '', blog_mission: '', workout_goal_per_week: '6', gymace_last_sync: '',
     name: '', my_code: '', water_goal_oz: '100', protein_goal_g: '', diet: 'lowcarb', my_code_draft: '', my_code_json: '', my_code_saved_at: ''
   };
   E.SETTING_KEYS = Object.keys(E.DEFAULTS);
@@ -986,53 +986,98 @@
     out.protein_goal = E.proteinGoal(S);
     return out;
   };
+  /* The suite this app belongs to: free tools for a healthy, resilient, self-sustaining life. One is spotlighted each day. */
+  E.SUITE = [
+    { name: 'Steadfast Health', url: 'https://steadfasthealth.org', what: 'It keeps weight, food, training and daily habits in one place, and it wrote this post from my own numbers.' },
+    { name: 'Land Finder', url: 'https://thelandfinder.org', what: 'It scores counties for land, water, soil and cost, then checks a parcel before you buy it.' },
+    { name: 'Groundwork', url: 'https://groundworkpath.org', what: 'It lays out a plan in stages from wherever you are today, even with no money and no experience, to living off a place of your own.' },
+    { name: 'Homestead Cost Calculator', url: 'https://wcwilkins2025.github.io/homestead-cost-calculator/', what: 'It adds up what a homestead costs to set up and run, what it can bring in, and when it pays for itself.' },
+    { name: 'Prepare Me', url: 'https://preparemeapp.org', what: 'It builds a readiness plan from the risks where you actually live, free steps first.' },
+    { name: 'Radio Elmer', url: 'https://radioelmer.org', what: 'It gets a ham radio programmed and on the air, so you can still talk when the phones cannot.' }
+  ];
+  function pickOf(list, n) { return list[((n % list.length) + list.length) % list.length]; }
+  /* one lesson from the day, written for someone just starting */
+  function lessonOf(x) {
+    var ck = x.checkin || {}, n = x.day_nutrition, d = x.day_no;
+    if (x.prs.length) return pickOf([
+      'A new best does not come from one big day. It comes from showing up on the ordinary ones. If you are starting, the ordinary days are the whole game.',
+      'Strength comes back faster than you think. Pick a weight you can lift ten times, write it down, and beat it by a little next time. That is all a program is.'], d);
+    if (x.weight !== null && x.prev_weight !== null && x.weight > x.prev_weight) return pickOf([
+      'The scale went up today. It does that: water, salt, a hard workout. Watch the seven-day average, not one morning. Quitting over one number is the only real setback.',
+      'Up a little today, and that is fine. If you are just starting, expect days like this. Weigh in anyway; the habit of looking is worth more than any single reading.'], d);
+    if (n && x.protein_goal && n.protein >= x.protein_goal) return pickOf([
+      'Protein first. Build each plate around meat, eggs or fish and the hunger mostly takes care of itself. It is the simplest change I know.',
+      'Hitting protein is what keeps the muscle while the fat comes off. Plan it the night before and it is done before the day can get in the way.'], d);
+    if (ck.sleep_hours != null && ck.sleep_hours < 6) return 'Short on sleep, and I can feel it. If you fix only one thing first, fix sleep: dark room, no phone in bed, same time every night. Everything else gets easier.';
+    if (ck.water_oz && x.water_goal && ck.water_oz >= x.water_goal) return 'Water done. A lot of what feels like hunger is thirst. Keep a full bottle in sight and drink before you reach for food.';
+    if (!x.sessions.length && !x.activities.length) return pickOf([
+      'Rest is part of the plan, not a break from it. Muscle is built on the days off. If you are starting out, rest on purpose and come back tomorrow.',
+      'A rest day still counts if you keep the food and the habits. You do not have to be perfect, only steady.'], d);
+    return pickOf([
+      'Nobody needs a perfect plan to start. Weigh in, eat real food, move a little more than yesterday, and write it down. Do that for a week and you will see it.',
+      'Being healthy and strong is part of being ready for whatever comes. You cannot take care of a family or a place if you cannot take care of yourself first.',
+      'Small and steady beats big and short. Pick one habit from today and keep it for seven days. Then add another.'], d);
+  }
   E.generatePost = function (S, ds, fc) {
-    var x = E.facts(S, ds, fc), bits = [];
-    if (x.weight !== null) bits.push(lb(x.weight));
+    var x = E.facts(S, ds, fc), ck = x.checkin, n = x.day_nutrition;
     var moved = x.sessions.map(function (s) { return s.workout; }).concat(x.activities.map(function (t) { return t.name.toLowerCase(); }));
-    bits.push(moved.length ? moved.join(', ') : 'rest day');
-    var title = 'Day ' + x.day_no + ': ' + bits.join(', '), p = [];
+    var head = x.weight !== null && x.lost > 0 ? g(x.lost) + ' pounds down' : x.weight !== null ? lb(x.weight) : null;
+    var title = 'Day ' + x.day_no + ': ' + [head, x.prs.length ? 'a new best' : (moved.length ? moved.join(', ') : 'a rest day')].filter(Boolean).join(', ');
+
+    // ---- getting better: the day, told plainly ----
+    var me = [];
     if (x.weight !== null) {
-      var line = '**Scale:** ' + lb(x.weight) + '.';
+      var w = 'This morning the scale read ' + lb(x.weight) + '.';
       if (x.prev_weight !== null) {
         var ch = r1(x.weight - x.prev_weight);
-        line += ch ? ' ' + (ch < 0 ? 'Down' : 'Up') + ' ' + g(Math.abs(ch)) + ' from ' + E.longDate(x.prev_date) + '.' : ' Same as ' + E.longDate(x.prev_date) + '.';
+        w += ch < 0 ? ' Down ' + g(-ch) + ' from ' + E.longDate(x.prev_date) + '.' : ch > 0 ? ' Up ' + g(ch) + ' from ' + E.longDate(x.prev_date) + '.' : ' Same as ' + E.longDate(x.prev_date) + '.';
       }
-      line += x.day_no === 1 ? ' Day one. ' + g(x.to_go) + ' to go to ' + g(x.target) + '.' : ' Down ' + g(x.lost) + ' since day one, ' + g(x.to_go) + ' to go to ' + g(x.target) + '.';
-      if (x.avg7 !== null) line += ' Seven-day average ' + g(x.avg7) + '.';
-      p.push(line);
-    } else p.push('**Scale:** no weigh-in today.');
+      w += x.day_no === 1 ? ' Day one: ' + g(x.to_go) + ' to go to ' + g(x.target) + '.' : x.lost > 0 ? ' That is ' + g(x.lost) + ' pounds gone since day one, and ' + g(x.to_go) + ' to go to ' + g(x.target) + '.' : ' ' + g(x.to_go) + ' to go to ' + g(x.target) + '.';
+      if (x.ahead_lb > 0) w += ' I am ' + g(x.ahead_lb) + ' ahead of the line I drew at the start.';
+      else if (x.ahead_lb < 0) w += ' I am ' + g(-x.ahead_lb) + ' behind the line I drew at the start. The scale is the truth; the line is only the expectation.';
+      me.push(w);
+    } else me.push('No weigh-in today. One morning on the scale is only one number; the habits are what move it.');
     if (x.sessions.length) {
-      x.sessions.forEach(function (s) {
-        var ex = s.exercises.map(function (e) { return e.exercise + ' ' + e.sets + '×, top set ' + (e.top_weight ? g(e.top_weight) + ' × ' + e.top_reps : e.top_reps + ' reps'); }).join('; ');
-        p.push('**Training:** ' + s.workout + '. ' + s.sets + ' sets, ' + Math.round(s.volume).toLocaleString('en-US') + ' lb moved. ' + ex + '.');
-      });
-      if (x.prs.length) p.push('**New bests:** ' + x.prs.map(function (r) { return r.exercise + ' ' + g(r.weight) + ' × ' + r.reps; }).join('; ') + '.');
-    } else if (!x.activities.length) p.push('**Training:** rest day.');
-    if (x.activities.length) p.push('**Also:** ' + x.activities.map(function (t) { return t.name + ', ' + t.minutes + ' min' + (t.distance ? ', ' + g(t.distance) + ' mi' : '') + ' (about ' + t.kcal + ' kcal)'; }).join('; ') + '.');
-    p.push('**This week:** workout ' + x.week_workouts + ' of ' + x.week_goal + '. ' + x.last7_workouts + ' in the last seven days.');
-    if (x.meals.length) {
-      var n = x.day_nutrition;
-      p.push('**Food' + (x.away ? ' (away day, cooler bag)' : '') + ':** ' + x.meals.map(function (m) { return m.slot + ': ' + m.name; }).join('; ') + '.' +
-        (n ? ' About ' + n.kcal.toLocaleString('en-US') + ' kcal, ' + n.protein + ' g protein' + (x.protein_goal ? ' (goal ' + x.protein_goal + ')' : '') + ', ' + g(n.carbs) + ' g net carbs.' : '') + ' No bread, no sugar, nothing out of a drive-through.');
-    } else p.push('**Food:** no plan logged for today.');
-    var ck = x.checkin;
+      var t = x.sessions.map(function (s) {
+        var top = s.exercises.slice().sort(function (a, b) { return b.top_weight - a.top_weight; })[0];
+        return 'I trained ' + s.workout + ': ' + s.sets + ' set' + (s.sets === 1 ? '' : 's') + ' and ' + Math.round(s.volume).toLocaleString('en-US') + ' pounds moved' + (top ? ', the heaviest set ' + top.exercise + ' at ' + (top.top_weight ? g(top.top_weight) + ' × ' + top.top_reps : top.top_reps + ' reps') : '') + '.';
+      }).join(' ');
+      if (x.prs.length) t += ' And a new best: ' + x.prs.map(function (r) { return r.exercise + ', ' + g(r.weight) + ' × ' + r.reps; }).join('; ') + '.';
+      me.push(t);
+    }
+    if (x.activities.length) me.push((x.sessions.length ? 'I also got in ' : 'I got in ') + x.activities.map(function (a) { return a.name.toLowerCase() + ' for ' + a.minutes + ' minutes' + (a.distance ? ' (' + g(a.distance) + ' mi)' : ''); }).join(' and ') + '.');
+    if (!x.sessions.length && !x.activities.length) me.push('Today was a rest day.');
+    me[me.length - 1] += ' That makes ' + x.week_workouts + ' workout' + (x.week_workouts === 1 ? '' : 's') + ' this week against a goal of ' + x.week_goal + '.';
+    if (x.meals.length) me.push('On the plate' + (x.away ? ', packed in the cooler for a day away' : '') + ': ' + x.meals.map(function (m) { return m.name; }).join(', ') + '.' +
+      (n ? ' About ' + n.kcal.toLocaleString('en-US') + ' calories and ' + n.protein + ' grams of protein' + (x.protein_goal ? (n.protein >= x.protein_goal ? ', goal met' : ' of my ' + x.protein_goal) : '') + '.' : ''));
     if (ck) {
-      var cb = [], sc = E.SCORES.filter(function (k) { return ck[k] != null; });
-      if (sc.length) cb.push(sc.map(function (k) { return k + ' ' + ck[k]; }).join(', ').replace(/^./, function (c) { return c.toUpperCase(); }) + ' out of 10.');
-      if (ck.sleep_hours != null) cb.push(g(ck.sleep_hours) + ' hours of sleep.');
-      if (ck.water_oz) cb.push(g(ck.water_oz) + ' of ' + g(x.water_goal) + ' oz of water.');
+      var c = [], sc = E.SCORES.filter(function (k) { return ck[k] != null; });
+      if (sc.length) c.push('I rated the day ' + sc.map(function (k) { return k + ' ' + ck[k]; }).join(', ') + ' out of 10.');
+      if (ck.sleep_hours != null) c.push('Slept ' + g(ck.sleep_hours) + ' hours.');
+      if (ck.water_oz) c.push('Drank ' + g(ck.water_oz) + ' of ' + g(x.water_goal) + ' ounces of water.');
       var kept = E.HABITS.filter(function (h) { return ck.habits && ck.habits[h[0]]; }).map(function (h) { return h[1].split(',')[0].toLowerCase(); });
-      if (kept.length) cb.push('Kept: ' + kept.join('; ') + '.');
-      if (cb.length) p.push('**Check-in:** ' + cb.join(' '));
+      if (kept.length) c.push('Kept: ' + kept.join('; ') + '.');
+      if (c.length) me.push(c.join(' '));
     }
-    if (x.ahead_lb !== null) {
-      if (x.ahead_lb > 0) p.push('**The line:** ' + g(x.ahead_lb) + ' lb ahead of the forecast.');
-      else if (x.ahead_lb < 0) p.push('**The line:** ' + g(Math.abs(x.ahead_lb)) + ' lb behind the forecast. The scale is the truth; the line is the expectation.');
-      else p.push('**The line:** right on the forecast.');
-    }
-    if (x.target_date) p.push('**' + g(x.target) + ' on the calendar:** ' + E.longDate(x.target_date) + ', at this pace.');
-    return { date: x.date, title: title, body_md: p.join('\n\n'), facts: x };
+    if (x.target_date) me.push('At this pace I reach ' + g(x.target) + ' on ' + E.longDate(x.target_date) + '.');
+
+    // ---- bringing others along ----
+    var them = [lessonOf(x)], mission = String(E.get(S, 'blog_mission') || '').trim();
+    them.push(mission || 'Getting healthy is one part of something bigger: a healthy, resilient, self-sustaining life. Strong enough to work a place, ready for whatever comes, and able to help the people around you do the same.');
+    var tool = pickOf(E.SUITE, x.day_no);
+    them.push('**Today\'s tool: ' + tool.name + '.** ' + tool.what + ' ' + tool.url);
+    them.push('It is one of a suite of tools for that life: Steadfast Health, Land Finder, Groundwork, the Homestead Cost Calculator, Prepare Me and Radio Elmer. Every one is free, and always will be. Find them all at https://homesteadready.org. Use them, and bring someone with you.');
+
+    // ---- by the numbers ----
+    var nums = [];
+    if (x.weight !== null) nums.push('Weight: ' + lb(x.weight) + (x.avg7 !== null ? ', seven-day average ' + g(x.avg7) : '') + (x.lost > 0 ? ', down ' + g(x.lost) + ' since day one' : ''));
+    x.sessions.forEach(function (s) { nums.push(s.workout + ': ' + s.exercises.map(function (e) { return e.exercise + ' ' + e.sets + '×, top ' + (e.top_weight ? g(e.top_weight) + ' × ' + e.top_reps : e.top_reps + ' reps'); }).join('; ')); });
+    x.activities.forEach(function (a) { nums.push(a.name + ': ' + a.minutes + ' min' + (a.distance ? ', ' + g(a.distance) + ' mi' : '') + ', about ' + a.kcal + ' kcal'); });
+    nums.push('Workouts: ' + x.week_workouts + ' of ' + x.week_goal + ' this week, ' + x.last7_workouts + ' in the last seven days');
+    if (n) nums.push('Food: about ' + n.kcal.toLocaleString('en-US') + ' kcal, ' + n.protein + ' g protein, ' + g(n.carbs) + ' g net carbs');
+
+    var body = ['## Getting better'].concat(me, ['## Bringing others along'], them, ['## By the numbers', nums.map(function (l) { return '- ' + l; }).join('\n')]);
+    return { date: x.date, title: title, body_md: body.join('\n\n'), facts: x };
   };
   E.post = function (S, ds, fc) {
     var gpost = E.generatePost(S, ds, fc), c = S.db.blog_posts.find(function (b) { return b.date === ds; }) || {};
@@ -1056,6 +1101,7 @@
   E.mdToHtml = function (md) {
     return String(md || '').trim().split('\n\n').map(function (para) {
       var lines = para.trim().split('\n');
+      if (lines.length === 1 && lines[0].indexOf('## ') === 0) return '<h2>' + mdInline(lines[0].slice(3)) + '</h2>';
       if (lines.every(function (l) { return l.indexOf('- ') === 0; })) return '<ul>' + lines.map(function (l) { return '<li>' + mdInline(l.slice(2)) + '</li>'; }).join('') + '</ul>';
       return '<p>' + lines.map(mdInline).join('<br>') + '</p>';
     }).join('\n');

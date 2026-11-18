@@ -16,7 +16,7 @@
 <script src="config.js"></script>
 <script src="data/library.js?v=6"></script>
 <script src="js/store.js?v=8"></script>
-<script src="js/engine.js?v=9"></script>
+<script src="js/engine.js?v=10"></script>
 <script src="js/api.js?v=7"></script>
 <script src="js/app.js?v=9"></script>
 <style>
@@ -24,6 +24,7 @@
   .post h3 { font-family: var(--display); font-weight: 700; font-size: 26px; letter-spacing: .04em; text-transform: uppercase; margin: 0 0 2px; color: var(--ink); }
   .post .date { font-family: var(--display); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
   .post p { margin: 0 0 10px; }
+  .post h4 { font-family: var(--display); font-weight: 700; font-size: 15px; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin: 18px 0 6px; padding-bottom: 2px; border-bottom: 1px solid var(--line); }
   textarea { width: 100%; min-height: 140px; font-family: var(--serif); font-size: 16px; line-height: 1.5; }
   .posts a { display: block; padding: 8px 0; border-bottom: 1px solid var(--line); color: var(--ink); }
   .posts a strong { font-family: var(--display); letter-spacing: .04em; text-transform: uppercase; font-size: 17px; }
@@ -74,11 +75,11 @@
       <form id="site-form">
         <label>Blog title <input id="blog-title"></label>
         <label style="margin-top:8px">Intro on the front page (Markdown) <textarea id="blog-intro" style="min-height:80px"></textarea></label>
-        <label style="margin-top:8px">Publish folder <input id="blog-dir" placeholder="data\blog-site"></label>
+        <label style="margin-top:8px">Why I'm doing this, and who I want to help (Markdown; goes in every post under "Bringing others along") <textarea id="blog-mission" style="min-height:90px" placeholder="Leave blank for the standard words about a healthy, resilient, self-sustaining life."></textarea></label>
         <label style="margin-top:8px">Workout goal per week <input type="number" id="goal" min="1" max="7" step="1" style="width:90px"></label>
         <div style="display:flex; gap:10px; align-items:center; margin-top:10px"><button type="submit">Save</button></div>
       </form>
-      <p class="small muted" style="margin:10px 0 0" id="site-info">"Publish site" writes index.html and one page per day into the publish folder. Point the folder at a local copy of the website and push it, or upload the folder to any host.</p>
+      <p class="small muted" style="margin:10px 0 0" id="site-info">"Publish site" saves the whole blog as one page, blog.html, to put on any web host. "Copy Markdown" copies today's post to paste anywhere.</p>
     </div>
   </div>
 </main>
@@ -87,7 +88,7 @@ let cur = todayStr(), post = null, settings = null;
 function shift(n) { const d = new Date(cur + "T12:00:00"); d.setDate(d.getDate() + n); cur = d.toISOString().slice(0, 10); load(); }
 function mdHtml(md) {
   const inline = s => esc(s).split("**").map((t, i) => i % 2 ? `<strong>${t}</strong>` : t).join("");
-  return md.trim().split(/\n\n+/).map(b => { const ls = b.trim().split("\n"); return ls.every(l => l.startsWith("- ")) ? `<ul>${ls.map(l => `<li>${inline(l.slice(2))}</li>`).join("")}</ul>` : `<p>${ls.map(inline).join("<br>")}</p>`; }).join("");
+  return md.trim().split(/\n\n+/).map(b => { const ls = b.trim().split("\n"); return ls.length === 1 && ls[0].startsWith("## ") ? `<h4>${inline(ls[0].slice(3))}</h4>` : ls.every(l => l.startsWith("- ")) ? `<ul>${ls.map(l => `<li>${inline(l.slice(2))}</li>`).join("")}</ul>` : `<p>${ls.map(inline).join("<br>")}</p>`; }).join("");
 }
 async function load() {
   el("day").value = cur;
@@ -103,7 +104,7 @@ async function load() {
 async function loadSettings() {
   settings = await api("/api/settings");
   el("blog-title").value = settings.blog_title || ""; el("blog-intro").value = settings.blog_intro || "";
-  el("blog-dir").value = settings.blog_publish_dir || ""; el("goal").value = settings.workout_goal_per_week || 6;
+  el("blog-mission").value = settings.blog_mission || ""; el("goal").value = settings.workout_goal_per_week || 6;
 }
 el("form").addEventListener("submit", async ev => {
   ev.preventDefault();
@@ -112,7 +113,7 @@ el("form").addEventListener("submit", async ev => {
 });
 el("site-form").addEventListener("submit", async ev => {
   ev.preventDefault();
-  try { await api("/api/settings", { method: "PATCH", body: { blog_title: el("blog-title").value, blog_intro: el("blog-intro").value, blog_publish_dir: el("blog-dir").value, workout_goal_per_week: el("goal").value } }); flash("msg", "Site settings saved."); await load(); }
+  try { await api("/api/settings", { method: "PATCH", body: { blog_title: el("blog-title").value, blog_intro: el("blog-intro").value, blog_mission: el("blog-mission").value, workout_goal_per_week: el("goal").value } }); flash("msg", "Site settings saved."); await load(); }
   catch (e) { flash("msg", e.message, "err"); }
 });
 el("publish").addEventListener("click", async () => {

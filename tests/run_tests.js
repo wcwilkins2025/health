@@ -187,9 +187,12 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     await api('POST', '/api/weight', { date: '2026-11-12', weight: 277.5 });
     await api('POST', '/api/log/sets', { session_ms: ms('2026-11-12', 9), workout: 'Push', exercise: 'Bench Press', weight: 135, reps: 8 });
     let p = await api('GET', '/api/blog/2026-11-12');
-    check('title from the numbers', p.title === 'Day 3: 277.5 lb, Push', p.title);
-    check('body lines', p.body_md.includes('**Scale:** 277.5 lb. Down 2.5 from Tuesday, November 10, 2026.') && p.body_md.includes('**Training:** Push. 1 sets, 1,080 lb moved.') && p.body_md.includes('workout 1 of 6'), p.body_md);
-    check('a rest day reads sensibly', (await api('GET', '/api/blog/2026-11-11')).body_md.includes('no weigh-in today'));
+    check('title from the numbers', p.title === 'Day 3: 2.5 pounds down, Push', p.title);
+    check('body lines', p.body_md.includes('This morning the scale read 277.5 lb. Down 2.5 from Tuesday, November 10, 2026. That is 2.5 pounds gone since day one') && p.body_md.includes('I trained Push: 1 set and 1,080 pounds moved, the heaviest set Bench Press at 135 × 8.') && p.body_md.includes('1 workout this week against a goal of 6'), p.body_md);
+    check('a rest day reads sensibly', (await api('GET', '/api/blog/2026-11-11')).body_md.includes('No weigh-in today.'));
+    check('the story has its three parts, the suite and always free', ['## Getting better', '## Bringing others along', '## By the numbers', 'https://homesteadready.org', 'free, and always will be'].every(k => p.body_md.includes(k)));
+    await api('PATCH', '/api/settings', { blog_mission: 'I am getting strong so I can help my family.' });
+    check('my own words replace the standard ones', (await api('GET', '/api/blog/2026-11-12')).body_md.includes('I am getting strong so I can help my family.') && E.mdToHtml('## Getting better').startsWith('<h2>'));
     p = await api('PUT', '/api/blog/2026-11-12', { commentary: 'Felt strong.\n\n- slept 8 hours', title: 'Back under 278' });
     check('commentary and a custom title', p.title === 'Back under 278' && p.markdown.includes('## In my own words'));
     const list = await api('GET', '/api/blog');
@@ -301,7 +304,7 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     check('own goals win', eq(await api('GET', '/api/goals'), { water_oz: 120, protein_g: 200 }));
     await api('POST', '/api/checkins/2026-11-15/water', { add: 64 });
     const post = await api('GET', '/api/blog/2026-11-15');
-    check('the post has the check-in', post.body_md.includes('**Check-in:** Energy 7, focus 6 out of 10. 7.5 hours of sleep. 64 of 120 oz of water. Kept: 10 minutes of sun within an hour of waking; no alcohol.'), post.body_md);
+    check('the post has the check-in', post.body_md.includes('I rated the day energy 7, focus 6 out of 10. Slept 7.5 hours. Drank 64 of 120 ounces of water. Kept: 10 minutes of sun within an hour of waking; no alcohol.'), post.body_md);
     check('a check-in day is a post day', (await api('GET', '/api/blog')).some(x => x.date === '2026-11-14'));
     const s = await api('GET', '/api/summary');
     check('the dashboard has the check-in and goals', s.checkin.water_oz === 64 && s.water_goal === 120 && s.protein_goal === 200);
@@ -484,7 +487,7 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     check('the week shows it on the day it was done', wed && wed.name === 'Pickleball' && wed.status === 'done' && wk.days[2].kcal >= a.kcal);
     check('20 minutes or more counts as a workout day; a 10-minute stretch does not', E.workoutDates(S).includes('2026-11-18') && E.workoutDates(S).includes('2026-11-17') && !E.workoutDates(S).includes('2026-11-16'));
     const post = await api('GET', '/api/blog/2026-11-18');
-    check('the daily post mentions it', post.title.includes('pickleball') && post.body_md.includes('**Also:** Pickleball, 60 min'), post.body_md);
+    check('the daily post mentions it', post.title.includes('pickleball') && post.body_md.includes('I got in pickleball for 60 minutes.'), post.body_md);
     check('the coach sees it', E.coachContext(S).other_training_last_14_days.length === 3);
     const list = await api('GET', '/api/activities?to=2026-11-18');
     check('the last two weeks, newest first', list.entries[0].kind === 'pickleball' && list.kinds.length > 20);
