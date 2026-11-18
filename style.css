@@ -212,7 +212,7 @@ header.top .acct a { color: var(--accent); font-family: var(--display); font-wei
 .timer { position: fixed; left: 0; right: 0; bottom: 0; background: var(--band); color: var(--band-fg); padding: 12px 16px; display: flex; gap: 12px; align-items: center; justify-content: center; font-family: var(--display); font-size: 22px; letter-spacing: .06em; z-index: 9; cursor: pointer; }
 .timer.done { background: var(--green); }
 .timer small { font-size: 14px; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
-.wk-edit .row { display: grid; grid-template-columns: 1fr 70px 70px auto; gap: 6px; align-items: center; margin-top: 6px; }
+.wk-edit .row { display: grid; grid-template-columns: minmax(0, 1fr) 70px 70px auto; gap: 6px; align-items: center; margin-top: 6px; }
 .wk-edit .row input[type=number] { width: 100%; }
 .wk-edit .row .mv { display: flex; gap: 2px; }
 
@@ -343,3 +343,7 @@ body.has-bar main { padding-bottom: 120px; }
 .rest-inline .ri-btns button { background: transparent; color: inherit; border-color: currentColor; padding: 10px 14px; font-size: 16px; }
 .vol-row { display: flex; gap: 10px; align-items: center; }
 .vol-row input[type=range] { flex: 1; min-width: 120px; accent-color: var(--accent); }
+/* sets and reps, set from the exercise */
+.ex .tgt { background: transparent; color: var(--accent); border: 1px dashed var(--line); padding: 2px 8px; font-size: 13px; letter-spacing: .06em; }
+.ex .tgt:hover { border-color: var(--accent); }
+.tgt-edit { background: var(--soft-accent); border-radius: var(--radius); padding: 10px; margin: 8px 0; }

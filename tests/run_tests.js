@@ -137,6 +137,10 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     await api('POST', '/api/log/sets', { session_ms: t, workout: 'Push', exercise: 'Bench Press', weight: 100, reps: 10 });
     const w = await api('PUT', '/api/workouts/Push', { rename: 'Push Day', exercises: [{ exercise: 'Incline Press', target_sets: 4, target_reps: 8 }, { exercise: 'Dips' }, { exercise: 'incline press' }] });
     check('rename and reorder a workout, duplicates dropped', w.workout === 'Push Day' && eq(w.exercises.map(e => e.exercise), ['Incline Press', 'Dips']) && w.exercises[0].note === '4 sets of 8');
+    // sets and reps set from the exercise on the Log page: the others keep their own targets, notes included
+    await api('PUT', '/api/workouts/' + encodeURIComponent('Push Day'), { exercises: [{ exercise: 'Incline Press', target_sets: 4, target_reps: 8 }, { exercise: 'Dips', note: '5 Sets 10 Reps' }] });
+    const w2 = await api('PUT', '/api/workouts/' + encodeURIComponent('Push Day'), { exercises: [{ exercise: 'Incline Press', target_sets: 3, target_reps: 12 }, { exercise: 'Dips', target_sets: 5, target_reps: 10, note: '5 Sets 10 Reps' }] });
+    check('set one exercise sets and reps; the next keeps its note', w2.exercises[0].target_sets === 3 && w2.exercises[0].target_reps === 12 && w2.exercises[1].note === '5 Sets 10 Reps' && w2.exercises[1].target_sets === 5);
     check('the rotation and the history follow the rename', E.get(S, 'lift_rotation') === 'Push Day,Pull,Legs,Push Day,Pull,Legs,Rest' && (await api('GET', '/api/gym/sessions')).sessions[0].workout === 'Push Day');
     await api('DELETE', '/api/workouts/' + encodeURIComponent('Push Day'));
     check('delete a workout', !(await api('GET', '/api/workouts')).some(x => x.workout === 'Push Day'));

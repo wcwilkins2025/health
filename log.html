@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Log · Steadfast Health</title>
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=15">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f4a32">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -152,7 +152,7 @@ function exList(s) {
 function targetOf(t) {
   if (!t) return null;
   if (t.target_sets) return { sets: t.target_sets, reps: t.target_reps ?? null };
-  const m = /(\d+)\s*sets?\D{0,6}?(\d+)\s*reps?/i.exec(t.note || "");
+  const m = /(\d+)\s*sets?\D{0,6}?(\d+)(?:\s*reps?)?/i.exec(t.note || "");
   return m ? { sets: +m[1], reps: +m[2] } : null;
 }
 const unfinished = x => x.target ? x.sets.length < x.target : !x.sets.length;
@@ -210,7 +210,9 @@ function renderOpen(s, x) {
   const target = x.target ? `${x.target} × ${x.treps ?? "?"}` : (x.tpl && x.tpl.note) || "";
   const lastAt = x.last && x.last.sets[n] ? `Last time, set ${n + 1}: ${setStr(x.last.sets[n])}` : "";
   return `<div class="ex open">
-    <div class="ex-head" onclick="openEx(${ms}, '')" style="cursor:pointer"><strong>${esc(x.name)}</strong>${target ? `<span class="muted small">${esc(target)}</span>` : ""}<span class="prog">${n}${x.target ? "/" + x.target : ""}</span></div>
+    <div class="ex-head" onclick="openEx(${ms}, '')" style="cursor:pointer"><strong>${esc(x.name)}</strong><button type="button" class="tgt" onclick="event.stopPropagation(); editTarget(${ms}, ${jsArg(x.name)})">${x.target ? `${x.target} sets × ${x.treps ?? "?"} reps` : "Set sets × reps"} ✎</button><span class="prog">${n}${x.target ? "/" + x.target : ""}</span></div>
+    ${tgtEdit && tgtEdit.ms === ms && tgtEdit.name === x.name ? `<div class="tgt-edit"><div class="entry">${stepper("sets", "tgt", tgtEdit.sets)}${stepper("reps", "tgt", tgtEdit.reps)}</div>
+      <div class="entry-actions"><button type="button" class="logset" onclick="saveTarget()">Save for ${esc(s.workout || "this workout")}</button><button type="button" class="ghost" onclick="tgtEdit = null; render()">Cancel</button></div></div>` : ""}
     <div class="last">${x.last ? `last ${fmtDate(x.last.date)}: ${x.last.sets.map(setStr).join(", ")}` : "first time"}</div>
     ${x.sets.map((st, i) => st.id === editId ? renderEdit(st, i) : `<div class="setline" onclick="editSet(${st.id})"><span class="n">${i + 1}</span>
       <span>${st.weight == null ? "body" : fmt(st.weight) + " lb"} × ${st.reps ?? "?"}${st.note ? `<span class="note">${esc(st.note)}</span>` : ""}</span><span class="ed">Edit</span></div>`).join("")}
@@ -232,19 +234,33 @@ function renderEdit(st, i) {
 
 function stepper(kind, key, val) {
   const w = kind === "weight";
-  return `<div><span class="lbl">${w ? "Weight, lb" : "Reps"}</span><div class="stepper">
+  return `<div><span class="lbl">${w ? "Weight, lb" : kind === "sets" ? "Sets" : "Reps"}</span><div class="stepper">
     <button type="button" aria-label="${w ? "less weight" : "fewer reps"}" onclick="bump(${jsArg(key)}, '${kind}', -1)">−</button>
     <input type="number" inputmode="${w ? "decimal" : "numeric"}" step="${w ? "any" : "1"}" min="0" value="${val ?? ""}" placeholder="${w ? "body" : "0"}" onfocus="this.select()" oninput="setVal(${jsArg(key)}, '${kind}', this.value)">
     <button type="button" aria-label="${w ? "more weight" : "more reps"}" onclick="bump(${jsArg(key)}, '${kind}', 1)">+</button></div></div>`;
 }
-const vals = key => key === "edit" ? editVals : entry[key];
+const vals = key => key === "edit" ? editVals : key === "tgt" ? tgtEdit : entry[key];
 function setVal(key, kind, v) { vals(key)[kind] = v === "" ? null : Number(v); }
 function bump(key, kind, d) {
   const o = vals(key), step = kind === "weight" ? cfg().step : 1;
-  o[kind] = Math.max(0, Math.round(((o[kind] || 0) + d * step) * 100) / 100);
+  o[kind] = Math.max(key === "tgt" ? 1 : 0, Math.round(((o[kind] || 0) + d * step) * 100) / 100);
   render();
 }
 
+let tgtEdit = null;   // {ms, name, sets, reps}: the sets and reps being set for an exercise
+function editTarget(ms, name) {
+  const s = sessionsToShow().find(z => z.session_ms === ms), x = exList(s).find(e => e.name === name);
+  tgtEdit = { ms, name, sets: x.target || 3, reps: x.treps || 10 }; open[ms] = name; render();
+}
+async function saveTarget() {
+  const t = tgtEdit, s = sessionsToShow().find(z => z.session_ms === t.ms), wname = s.workout || "Workout";
+  const sets = Math.max(1, Math.min(20, Math.round(+t.sets || 0))), reps = Math.max(1, Math.min(200, Math.round(+t.reps || 0)));
+  const list = template(wname).map(e => { const g = targetOf(e) || {}; return { exercise: e.exercise, target_sets: g.sets ?? null, target_reps: g.reps ?? null, note: e.target_sets ? undefined : e.note }; });
+  const i = list.findIndex(e => e.exercise === t.name), row = { exercise: t.name, target_sets: sets, target_reps: reps };
+  if (i >= 0) list[i] = row; else list.push(row);
+  try { await api(`/api/workouts/${encodeURIComponent(wname)}`, { method: "PUT", body: { exercises: list } }); tgtEdit = null; await load(); flash("msg", `${t.name}: ${sets} sets of ${reps}, saved for ${wname}.`); }
+  catch (e) { flash("msg", e.message, "err"); }
+}
 function openEx(ms, name) { open[ms] = name; editId = null; render(); }
 function start(workout) {
   pending = { session_ms: ds === todayStr() ? Date.now() : new Date(ds + "T12:00").getTime(), workout };
@@ -392,7 +408,7 @@ function renderEditor() {
     if (!ed) return `<div style="display:flex;gap:8px;align-items:baseline;margin-top:8px;flex-wrap:wrap"><strong>${esc(name)}</strong><span class="muted small" style="flex:1">${template(name).map(e => esc(e.exercise)).join(", ") || "no exercises"}</span><button type="button" class="ghost small" onclick="editWorkout(${jsArg(name)})">Edit</button></div>`;
     return `<div class="card" style="margin-top:10px;padding:12px">
       <label>Name <input value="${esc(ed.name)}" onchange="editing[${jsArg(name)}].name = this.value"></label>
-      <div class="row muted small" style="margin-top:8px"><span>Exercise</span><span>Sets</span><span>Reps</span><span></span></div>
+      <div class="row muted small" style="margin-top:8px"><span>Exercise</span><span>Sets</span><span>Reps</span><span class="mv" aria-hidden="true" style="visibility:hidden"><button type="button" class="ghost small" tabindex="-1">▲</button><button type="button" class="ghost small" tabindex="-1">▼</button><button type="button" class="small danger" tabindex="-1">✕</button></span></div>
       ${ed.exercises.map((e, i) => `<div class="row">
         <input list="ex-names" value="${esc(e.exercise)}" onchange="editing[${jsArg(name)}].exercises[${i}].exercise = this.value">
         <input type="number" inputmode="numeric" min="1" value="${e.target_sets ?? ""}" onchange="editing[${jsArg(name)}].exercises[${i}].target_sets = this.value ? Number(this.value) : null">
@@ -411,7 +427,7 @@ function renderEditor() {
   }).join("") || `<p class="muted" style="margin:8px 0 0">No workouts yet. Make one.</p>`;
 }
 function editWorkout(name) {
-  editing[name] = { name, exercises: template(name).map(e => ({ exercise: e.exercise, target_sets: e.target_sets, target_reps: e.target_reps })) };
+  editing[name] = { name, exercises: template(name).map(e => { const g = targetOf(e) || {}; return { exercise: e.exercise, target_sets: g.sets ?? null, target_reps: g.reps ?? null }; }) };
   el("wk-card").open = true; renderEditor();
 }
 function moveEx(name, i, d) { const a = editing[name].exercises, j = i + d; if (j < 0 || j >= a.length) return; [a[i], a[j]] = [a[j], a[i]]; renderEditor(); }
