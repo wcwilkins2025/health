@@ -310,6 +310,19 @@ export async function listModels(cfg, provider, deps) {
   return (data.data || []).map(m => String(m.id || '').replace(/^models\//, '')).filter(Boolean).sort((a, b) => a.toLowerCase() < b.toLowerCase() ? -1 : 1);
 }
 
+/** A key whose format is not known (providers change them: Google now issues more than one kind): ask each provider
+    in turn to list its models with it, and the first that accepts it is the one. Returns the provider and its models, or null. */
+export const PROBE_ORDER = ['gemini', 'groq', 'openai', 'xai', 'anthropic'];
+export async function probeProvider(key, deps) {
+  for (const p of PROBE_ORDER) {
+    try {
+      const models = await listModels({ keys: { [p]: key } }, p, deps);
+      if (models.length) return { provider: p, models };
+    } catch (e) { /* not this provider's key */ }
+  }
+  return null;
+}
+
 /** One short exchange, to show the setup works. */
 export async function testConnection(cfg, deps) {
   const p = cfg.provider, model = modelFor(cfg, p), key = cfg.keys[p];

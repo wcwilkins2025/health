@@ -119,11 +119,14 @@ async function record(userId: string, kind: string, provider: string, model: str
 }
 
 async function quickSetup(cfg: any, key: string) {
-  const provider = core.detectProvider(key);
-  if (!provider) throw new core.AIError("That key's format is not one the app knows. Pick the provider under Advanced and paste it there.", 422);
+  let provider = core.detectProvider(key), models: string[] = [];
+  if (!provider) {
+    const hit = await core.probeProvider(key, deps);
+    if (!hit) throw new core.AIError("None of the providers accepted that key. Check that it was copied whole, or that it has just been made (a new key can take a minute to work).", 422);
+    provider = hit.provider; models = hit.models;
+  }
   cfg.provider = provider; cfg.keys[provider] = key;
-  let models: string[] = [];
-  try { models = await core.listModels(cfg, provider, deps); } catch (e) { if (provider !== "anthropic") throw e; }
+  if (!models.length) { try { models = await core.listModels(cfg, provider, deps); } catch (e) { if (provider !== "anthropic") throw e; } }
   const model = core.pickModel(provider, models, cfg.tier);
   if (!model) throw new core.AIError("No usable model was found for this key.", 502);
   if (provider === "anthropic") delete cfg.models.anthropic; else cfg.models[provider] = model;

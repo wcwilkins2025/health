@@ -374,6 +374,11 @@ async function section(name, fn) { current = name; console.log(name); try { awai
 
   await section('11. AI core (stand-in providers, nothing sent)', async () => {
     const core = await import(require('url').pathToFileURL(path.join(root, 'supabase/functions/ai/core.js')).href);
+    {
+      const deps = { fetchJson: async (url, key) => { if (url.startsWith('https://generativelanguage') && key === 'AQ.newkind') return { data: [{ id: 'models/gemini-flash' }] }; throw new Error('401'); }, anthropicModels: async () => { throw new Error('401'); } };
+      const hit = await core.probeProvider('AQ.newkind', deps), miss = await core.probeProvider('junk-key', deps);
+      check('a key in a new format is found by asking each provider', hit && hit.provider === 'gemini' && hit.models[0] === 'gemini-flash' && miss === null);
+    }
     check('keys recognized by their start', eq(['sk-ant-x', 'xai-x', 'gsk_x', 'AIzaX', 'sk-proj-x', 'nope'].map(core.detectProvider), ['anthropic', 'xai', 'groq', 'gemini', 'openai', null]));
     check('low tier: Claude Haiku; cheapest capable elsewhere', core.modelFor(core.defaults({}), 'anthropic') === 'claude-haiku-5-5' &&
       core.pickModel('groq', ['whisper-large-v3', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'], 'low') === 'openai/gpt-oss-20b' &&
