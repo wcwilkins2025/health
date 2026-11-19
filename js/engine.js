@@ -36,7 +36,7 @@
     setup_done: '0', start_weight: '250', target_weight: '200', start_date: '', sex: 'male', age: '50', height_in: '70',
     activity: 'sedentary', workouts_per_week: '', kcal_per_workout: '300', daily_kcal: '', water_loss_lb: '6', target_date: '',
     lift_rotation: 'Push,Pull,Legs,Push,Pull,Legs,Rest', walk_min_per_week: '0', bike_min_per_week: '0', walk_pace: 'brisk',
-    bike_pace: 'moderate', blog_title: 'The Weight Log', blog_intro: '', blog_mission: '', workout_goal_per_week: '6', gymace_last_sync: '',
+    bike_pace: 'moderate', blog_title: 'The Weight Log', blog_intro: '', blog_mission: '', workout_goal_per_week: '6',
     name: '', my_code: '', water_goal_oz: '100', protein_goal_g: '', diet: 'lowcarb', my_code_draft: '', my_code_json: '', my_code_saved_at: ''
   };
   E.SETTING_KEYS = Object.keys(E.DEFAULTS);
@@ -683,18 +683,28 @@
     if (!k) return 0;
     return Math.round(minutes * E.kcalPerMin(k.met * (E.INTENSITY[intensity] || 1), weightLb));
   };
-  E.addActivity = async function (S, b) {
+  /* one entry checked and priced: used for a new entry and for fixing an old one (a missed day logged later) */
+  E.activityRow = function (S, b) {
     var k = E.ACTIVITIES.find(function (x) { return x.id === b.kind; });
     if (!k) throw E.bad('Pick a kind of training', 422);
     var ds = b.date || E.todayStr(); E.parse(ds);
+    if (ds > E.todayStr()) throw E.bad('That day has not come yet', 422);
     var minutes = Math.round(Number(b.minutes));
     if (!(minutes >= 1 && minutes <= 600)) throw E.bad('Minutes have to be between 1 and 600', 422);
     var intensity = E.INTENSITY[b.intensity] ? b.intensity : 'moderate';
     var dist = b.distance === '' || b.distance == null ? null : Number(b.distance);
     if (dist !== null && !(dist > 0 && dist < 500)) throw E.bad('Distance looks off', 422);
     var a = E.assumptions(S), wt = E.latestWeight(S, a);
-    return S.insert('activities', { date: ds, kind: k.id, minutes: minutes, intensity: intensity, distance: dist,
-      kcal: E.activityKcal(k.id, minutes, intensity, wt), note: String(b.note || '').slice(0, 300) });
+    return { date: ds, kind: k.id, minutes: minutes, intensity: intensity, distance: dist,
+      kcal: E.activityKcal(k.id, minutes, intensity, wt), note: String(b.note || '').slice(0, 300) };
+  };
+  E.addActivity = async function (S, b) { return S.insert('activities', E.activityRow(S, b)); };
+  E.updateActivity = async function (S, id, b) {
+    var old = (S.db.activities || []).find(function (x) { return String(x.id) === String(id); });
+    if (!old) throw E.bad('No such entry', 404);
+    var row = E.activityRow(S, Object.assign({}, old, b));
+    await S.update('activities', { id: old.id }, row);
+    return old.id;
   };
   E.activitiesOn = function (S, from, to) {
     return (S.db.activities || []).filter(function (x) { return x.date >= from && x.date <= to; })

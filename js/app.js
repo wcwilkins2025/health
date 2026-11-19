@@ -69,15 +69,14 @@ async function api(path, opts = {}) {
   }
 }
 
-/* Read a SQLite file the person picked (Gym ACE's database, or the old app's) and bring its rows in. */
+/* Read a SQLite file the person picked (the old Weight Target app's database) and bring its rows in. */
 async function importFile(file, expect) {
   const S = await HT.ready;
   const db = await HT.E.openSqlite(await file.arrayBuffer());
   try {
     const kind = HT.E.kindOf(db);
-    if (!kind) throw new Error("That file is not a Gym ACE database or a Weight Target database.");
-    if (expect && kind !== expect) throw new Error(kind === "old" ? "That is the old Weight Target database; import it on the Account page." : "That is a Gym ACE database; import it on the Training page.");
-    return kind === "gymace" ? await HT.E.importGymAce(S, db) : await HT.E.importOldApp(S, db);
+    if (kind !== "old") throw new Error("That file is not a Weight Target database.");
+    return await HT.E.importOldApp(S, db);
   } finally { db.close(); }
 }
 

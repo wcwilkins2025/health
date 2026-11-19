@@ -31,10 +31,6 @@ Put the two values in `config.js`, commit and push. GitHub Pages republishes in 
 
 The free tier's mailer sends a few emails an hour: enough for invites, not for a public launch. Before inviting the public, add custom SMTP under **Authentication → Emails** (for example a free Resend account with the domain verified in Cloudflare).
 
-## Gym ACE
-
-Training → **Import from Gym ACE** → pick the GymACE.db file (on Windows it is in `%LOCALAPPDATA%\Packages\16549Appatary.GymACE_*\LocalState\`). New sets are added, edited ones updated, deleted ones removed. Sets logged in the app are never touched. The file is read in the browser; only the rows are saved.
-
 ## 5. The AI: coach, My Code builder, kitchen helper
 
 The AI runs in a Supabase Edge Function, `supabase/functions/ai`, so the key never reaches a browser.

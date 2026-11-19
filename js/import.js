@@ -1,6 +1,5 @@
 /* Steadfast Health: bringing data in from a SQLite file the person picks.
-   Two kinds: Gym ACE's database (its sets are mirrored into the log) and the old Weight Target app's
-   database (everything moves over once). The file is read in the browser with sql.js; nothing is uploaded
+   One kind: the old Weight Target app's database (everything moves over once). The file is read in the browser with sql.js; nothing is uploaded
    except the rows that end up in the person's own tables. */
 (function (root) {
   'use strict';
@@ -28,52 +27,8 @@
     return new HT._SQL.Database(new Uint8Array(bytes));
   };
   E.kindOf = function (db) {
-    if (hasTable(db, 'Sets') && hasTable(db, 'Exercises')) return 'gymace';
     if (hasTable(db, 'weight_log') && hasTable(db, 'gym_sets')) return 'old';
     return null;
-  };
-
-  /* Gym ACE: new sets added, edited ones updated, ones deleted in Gym ACE removed. Sets logged here are left alone;
-     workouts the person already has keep their exercises. */
-  E.importGymAce = async function (S, db) {
-    var sets = q(db, 'SELECT s.Id, s.Date, s.SessionDate, s.Weight, s.Reps, s.Note, e.Name AS exercise, w.Name AS workout FROM Sets s ' +
-      'LEFT JOIN Exercises e ON e.Id = s.ExerciseId LEFT JOIN Workouts w ON w.Id = s.WorkoutId ORDER BY s.Date');
-    var templates = [];
-    try {
-      templates = q(db, 'SELECT w.Name AS workout, e.Name AS exercise, we."Order" AS ord, COALESCE(we.Note, \'\') AS note FROM WorkoutsExercises we ' +
-        'JOIN Workouts w ON w.Id = we.WorkoutId JOIN Exercises e ON e.Id = we.ExerciseId ORDER BY w.Name, we."Order"');
-    } catch (e) { templates = []; }
-    var have = new Set(S.db.gym_workouts.map(function (r) { return r.workout; }));
-    var tRows = {}, k;
-    templates.filter(function (t) { return !have.has(t.workout); }).forEach(function (t) {
-      tRows[t.workout + '|' + t.exercise] = { workout: t.workout, exercise: t.exercise, ord: t.ord || 0, note: t.note || '', target_sets: null, target_reps: null };
-    });
-    await S.upsert('gym_workouts', Object.values(tRows));
-
-    var existing = {};
-    S.db.gym_sets.forEach(function (r) { if (r.gymace_id != null) existing[String(r.gymace_id)] = r; });
-    var seen = {}, inserts = [], updated = 0;
-    for (var i = 0; i < sets.length; i++) {
-      var s = sets[i], reps = numOrNull(s.Reps);
-      var row = { session_ms: Number(s.SessionDate), set_ms: Number(s.Date), date: E.msDate(s.SessionDate), workout: s.workout || '', exercise: s.exercise || 'Unknown',
-        weight: numOrNull(s.Weight), reps: reps === null ? null : Math.round(reps), note: s.Note || '' };
-      seen[String(s.Id)] = 1;
-      var old = existing[String(s.Id)];
-      if (!old) inserts.push(Object.assign({ gymace_id: Number(s.Id) }, row));
-      else {
-        var same = true;
-        for (k in row) if (String(old[k] == null ? '' : old[k]) !== String(row[k] == null ? '' : row[k])) same = false;
-        if (!same) { await S.update('gym_sets', { id: old.id }, row); updated++; }
-      }
-    }
-    await S.insert('gym_sets', inserts);
-    var gone = Object.keys(existing).filter(function (g) { return !seen[g]; }).map(function (g) { return existing[g].id; });
-    if (gone.length) await S.remove('gym_sets', { ids: gone });
-    var now = E.nowIso();
-    await E.set(S, 'gymace_last_sync', now);
-    var today = E.sessionsOn(S, E.todayStr()).map(function (x) { return { workout: x.workout, sets: x.sets, volume: x.volume }; });
-    return { kind: 'gymace', imported: inserts.length, updated: updated, removed: gone.length, total_sets: S.db.gym_sets.length,
-      sessions: new Set(S.db.gym_sets.map(function (x) { return String(x.session_ms); })).size, synced_at: now, today: today };
   };
 
   /* The old Weight Target database (data/users/1.db or data/weight-target.db): replaces this person's rows with its contents.

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Steadfast Health · free meal plans, weigh-ins and workout log</title>
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 <meta name="description" content="Meal plans, weigh-ins, blood pressure and workouts to reach your goal weight. Free, no ads.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Steadfast Health">
@@ -29,11 +29,11 @@
 <script src="config.js"></script>
 <script src="data/library.js?v=6"></script>
 <script src="js/store.js?v=8"></script>
-<script src="js/engine.js?v=11"></script>
-<script src="js/api.js?v=7"></script>
-<script src="js/app.js?v=9"></script>
+<script src="js/engine.js?v=12"></script>
+<script src="js/api.js?v=8"></script>
+<script src="js/app.js?v=10"></script>
 <script src="https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js"></script>
-<script src="js/import.js?v=6"></script>
+<script src="js/import.js?v=7"></script>
 </head>
 <body>
 <main>
@@ -75,7 +75,7 @@
       <div class="links" style="margin:10px 0 16px"><button type="button" id="signout">Sign out</button></div>
 
       <h2>Bring in old data</h2>
-      <p class="small" style="margin:0 0 6px">Pick a database file. The old Weight Target app's file (<code>data/users/1.db</code> or <code>data/weight-target.db</code>) <strong>replaces</strong> everything in this account with what it holds. A Gym ACE database adds its workouts to your log.</p>
+      <p class="small" style="margin:0 0 6px">Pick a database file. The old Weight Target app's file (<code>data/users/1.db</code> or <code>data/weight-target.db</code>) <strong>replaces</strong> everything in this account with what it holds.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input type="file" id="file" accept=".db,.sqlite,.bak,*/*" style="font-size:14px"><button type="button" class="small" id="import">Import</button></div>
 
       <h2>My Code</h2>
@@ -177,9 +177,7 @@ function codeBox(p) { el("code-hint").textContent = "Sent to " + p.email + ". Us
       db.close();
       if (kind === "old" && !confirm("This replaces everything in this account with the old app's data. Go ahead?")) { msg(""); el("import").disabled = false; return; }
       const r = await importFile(f);
-      msg(r.kind === "old"
-        ? `Brought over ${r.weigh_ins} weigh-ins, ${r.bp} blood pressure readings, ${r.plans} meal plans, ${r.sets} sets in ${r.workouts} workouts and ${r.posts} blog notes.` + (r.slots_without_meal ? ` ${r.slots_without_meal} plan slots named a meal the library no longer has and were left empty.` : "")
-        : `Gym ACE: ${r.imported} new sets, ${r.updated} changed, ${r.removed} removed.`, "ok");
+      msg(`Brought over ${r.weigh_ins} weigh-ins, ${r.bp} blood pressure readings, ${r.plans} meal plans, ${r.sets} sets in ${r.workouts} workouts and ${r.posts} blog notes.` + (r.slots_without_meal ? ` ${r.slots_without_meal} plan slots named a meal the library no longer has and were left empty.` : ""), "ok");
     } catch (e) { msg(e.message); }
     el("import").disabled = false;
   });

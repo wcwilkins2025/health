@@ -347,3 +347,10 @@ body.has-bar main { padding-bottom: 120px; }
 .ex .tgt { background: transparent; color: var(--accent); border: 1px dashed var(--line); padding: 2px 8px; font-size: 13px; letter-spacing: .06em; }
 .ex .tgt:hover { border-color: var(--accent); }
 .tgt-edit { background: var(--soft-accent); border-radius: var(--radius); padding: 10px; margin: 8px 0; }
+
+/* Log: the day being logged (any past day can be filled in or fixed) */
+.daybar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: -6px 0 12px; }
+.daybar input[type=date] { font-size: 17px; padding: 8px 10px; min-width: 0; }
+.daybar button { padding: 8px 14px; }
+.msg.warn { background: var(--yellow-soft, var(--card)); border: 2px solid var(--yellow, var(--accent)); color: var(--ink); font-weight: 600; }
+.food-row.on-day { border-left: 4px solid var(--accent); padding-left: 8px; }

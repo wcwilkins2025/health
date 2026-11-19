@@ -20,7 +20,7 @@ The AI runs in a Supabase Edge Function (`supabase/functions/ai`): `core.js` hol
 | `weight.html` | Weigh-ins, the forecast from an energy balance, the goal date and what it takes. |
 | `bp.html` | Blood pressure readings with 7- and 30-day averages and the bands. |
 | `checkin.html` | The day's water against a goal, protein planned against a goal, energy, focus and mood out of 10, sleep, and four habits, with seven-day averages. |
-| `training.html` | The week by day: what was lifted, what was missed, what is still owed. Sessions, volume, records. Gym ACE import. |
+| `training.html` | The week by day: what was lifted, what was missed, what is still owed. Sessions, volume, records. |
 | `log.html` | Log a workout on the phone: last time's sets to beat, a rest timer, your workouts and their exercises. |
 | `plan.html` | The week's meals, swaps, away days, build a week from last week's groceries. |
 | `recipes.html` | Every recipe with its macros. |
@@ -48,6 +48,6 @@ npm install
 npm test
 ```
 
-Setting up a Supabase project, inviting people and bringing in data from the old app or Gym ACE: [`docs/SETUP.md`](docs/SETUP.md).
+Setting up a Supabase project, inviting people and bringing in data from the old app: [`docs/SETUP.md`](docs/SETUP.md).
 
 Nutrition figures are estimates within about 10 percent. This is a personal tool, not medical advice; blood pressure or blood sugar medicine changes go through a doctor.

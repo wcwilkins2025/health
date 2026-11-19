@@ -210,33 +210,14 @@ async function section(name, fn) { current = name; console.log(name); try { awai
 
   await section('7. Imports', async () => {
     const SQL = await require('sql.js')();
-    // a Gym ACE database, the shape of the real one
+    // a Gym ACE database is no longer read
     const g = new SQL.Database();
-    g.run(`CREATE TABLE Exercises(Id INTEGER PRIMARY KEY, Name TEXT NOT NULL);
-      CREATE TABLE Workouts(Id INTEGER PRIMARY KEY, Name TEXT NOT NULL);
-      CREATE TABLE Sets(Id INTEGER PRIMARY KEY, Date INTEGER, SessionDate INTEGER, Weight TEXT, Reps TEXT, Note TEXT, ExerciseId INTEGER, WorkoutId INTEGER);
-      CREATE TABLE WorkoutsExercises(WorkoutId INTEGER, ExerciseId INTEGER, "Order" INTEGER, Type INTEGER, Note TEXT);
-      INSERT INTO Exercises VALUES (20, 'Bench Press Dumbbell'), (29, 'Alternate Hammer Curl');
-      INSERT INTO Workouts VALUES (2, 'Push Days');
-      INSERT INTO WorkoutsExercises VALUES (2, 20, 0, 0, '5 Sets of 10 Reps'), (2, 29, 1, 0, '');
-      INSERT INTO Sets VALUES (1, ${ms('2026-11-12', 9) + 1000}, ${ms('2026-11-12', 9)}, '35', '10', '', 20, 2), (2, ${ms('2026-11-12', 9) + 2000}, ${ms('2026-11-12', 9)}, '40', '8', '', 20, 2),
-        (3, ${ms('2026-11-12', 9) + 3000}, ${ms('2026-11-12', 9)}, '25', '12', '', 29, 2), (4, ${ms('2026-11-05', 9) + 1000}, ${ms('2026-11-05', 9)}, '30,5', '10', '', 20, 2);`);
+    g.run(`CREATE TABLE Exercises(Id INTEGER PRIMARY KEY, Name TEXT NOT NULL); CREATE TABLE Sets(Id INTEGER PRIMARY KEY, Date INTEGER);`);
+    check('a Gym ACE file is not taken', E.kindOf(g) === null && typeof E.importGymAce === 'undefined');
     const { S, api } = fresh();
     await E.seedDefaultWorkouts(S);
     await api('POST', '/api/log/sets', { session_ms: ms('2026-11-13'), workout: 'Push', exercise: 'Bench Press', weight: 100, reps: 10 });
-    check('knows a Gym ACE file', E.kindOf(g) === 'gymace');
-    let r = await E.importGymAce(S, g);
-    check('first import: 4 sets, logged set kept', r.imported === 4 && r.total_sets === 5 && r.sessions === 3, r);
-    check('comma decimals read', S.db.gym_sets.some(s => s.weight === 30.5));
-    const tpl = (await api('GET', '/api/gym/workouts')).find(w => w.workout === 'Push Days');
-    check('Gym ACE template added, ours kept', tpl && eq(tpl.exercises.map(e => e.exercise), ['Bench Press Dumbbell', 'Alternate Hammer Curl']) && (await api('GET', '/api/workouts')).some(w => w.workout === 'Push'));
-    check('targets read from the Gym ACE note', (await api('GET', '/api/workouts')).find(w => w.workout === 'Push Days').exercises[0].target_sets === 5);
-    r = await E.importGymAce(S, g);
-    check('again: nothing new', r.imported === 0 && r.updated === 0 && r.removed === 0 && r.total_sets === 5);
-    g.run(`UPDATE Sets SET Weight = '45' WHERE Id = 2; DELETE FROM Sets WHERE Id = 3; INSERT INTO Sets VALUES (5, ${ms('2026-11-12', 9) + 4000}, ${ms('2026-11-12', 9)}, '45', '6', '', 20, 2);`);
-    r = await E.importGymAce(S, g);
-    check('edits, deletions and additions mirror', r.imported === 1 && r.updated === 1 && r.removed === 1 && r.total_sets === 5, r);
-    check('the bench PR follows', (await api('GET', '/api/gym/prs')).find(p => p.exercise === 'Bench Press Dumbbell').weight === 45);
+    let r;
 
     // the old app's database, its schema as the Python app left it
     const o = new SQL.Database();
@@ -268,7 +249,7 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     check('knows an old-app file', E.kindOf(o) === 'old');
     r = await E.importOldApp(S, o);
     check('everything comes over, replacing what was there', r.weigh_ins === 2 && r.bp === 1 && r.plans === 1 && r.sets === 2 && r.workouts === 1 && r.posts === 1, r);
-    check('logged sets and Gym ACE ids kept', S.db.gym_sets.some(s => s.gymace_id === 77) && S.db.gym_sets.some(s => s.gymace_id === null && s.exercise === 'Squat'));
+    check('logged sets and their old ids kept', S.db.gym_sets.some(s => s.gymace_id === 77) && S.db.gym_sets.some(s => s.gymace_id === null && s.exercise === 'Squat'));
     check('settings come over; old paths and the Bring! password do not', E.get(S, 'start_weight') === '280' && E.get(S, 'setup_done') === '1' && !S.db.settings.some(x => /bring|gymace_db_path/.test(x.key)));
     const plan = E.getPlan(S, S.db.plans[0].id);
     const d = plan.days[0];
@@ -492,6 +473,15 @@ async function section(name, fn) { current = name; console.log(name); try { awai
     await api('POST', '/api/activities', { date: '2026-11-16', kind: 'stretch', minutes: 10 });
     check('bad entries refused', await throws(() => api('POST', '/api/activities', { kind: 'flying', minutes: 30 }), 422) &&
       await throws(() => api('POST', '/api/activities', { kind: 'walk', minutes: 0 }), 422) && await throws(() => api('POST', '/api/activities', { kind: 'run', minutes: 30, distance: -2 }), 422));
+    {
+      const missed = await api('POST', '/api/activities', { date: '2026-11-14', kind: 'bike', minutes: 40, intensity: 'easy' });
+      const fixed = await api('PATCH', `/api/activities/${missed.id}`, { minutes: 55, intensity: 'hard', distance: 12, note: 'forgot to log' });
+      check('a missed day logged later, then fixed: same day, new numbers, calories redone', fixed.date === '2026-11-14' && fixed.minutes === 55 && fixed.distance === 12 && fixed.kcal > missed.kcal && fixed.note === 'forgot to log' && S.db.activities.filter(x => x.id === missed.id).length === 1);
+      check('a fix is checked like a new entry; no future days; unknown entry 404',
+        await throws(() => api('PATCH', `/api/activities/${missed.id}`, { minutes: 0 }), 422) && await throws(() => api('POST', '/api/activities', { date: '2026-11-19', kind: 'walk', minutes: 30 }), 422) &&
+        await throws(() => api('PATCH', '/api/activities/999999', { minutes: 30 }), 404));
+      await api('DELETE', `/api/activities/${missed.id}`);
+    }
     const wk = await api('GET', '/api/training/week/2026-11-18');
     const wed = wk.days[2].items.find(x => x.what === 'Activity');
     check('the week shows it on the day it was done', wed && wed.name === 'Pickleball' && wed.status === 'done' && wk.days[2].kcal >= a.kcal);

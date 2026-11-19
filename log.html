@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Log · Steadfast Health</title>
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#2f4a32">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,14 +16,21 @@
 <script src="config.js"></script>
 <script src="data/library.js?v=6"></script>
 <script src="js/store.js?v=8"></script>
-<script src="js/engine.js?v=11"></script>
-<script src="js/api.js?v=7"></script>
-<script src="js/app.js?v=9"></script>
+<script src="js/engine.js?v=12"></script>
+<script src="js/api.js?v=8"></script>
+<script src="js/app.js?v=10"></script>
 <script src="data/exercises.js?v=1"></script>
 </head>
 <body>
 <main>
-  <h1>Log <span class="muted small"><input type="date" id="date" style="font-size:15px;padding:4px 8px"></span></h1>
+  <h1>Log</h1>
+  <div class="daybar">
+    <button type="button" class="ghost" id="day-prev" aria-label="The day before">◀</button>
+    <input type="date" id="date" aria-label="Day being logged">
+    <button type="button" class="ghost" id="day-next" aria-label="The day after">▶</button>
+    <button type="button" id="day-today">Today</button>
+  </div>
+  <div id="past-note" class="msg warn" style="display:none"></div>
   <div id="msg" class="msg" style="display:none"></div>
   <div class="tabs" id="kind-tabs">
     <button type="button" class="active" data-tab="weights">Weights</button>
@@ -32,7 +39,7 @@
 
   <section id="tab-other" style="display:none">
     <div class="card" style="margin-bottom:14px">
-      <h2>Log other training</h2>
+      <h2 id="act-title">Log other training</h2>
       <form id="act-form" class="act-form">
         <label>What <select id="a-kind"></select></label>
         <div><span class="lbl">Minutes</span><div class="stepper act-step">
@@ -41,7 +48,7 @@
           <button type="button" data-v="easy">Easy</button><button type="button" data-v="moderate" class="on">Moderate</button><button type="button" data-v="hard">Hard</button></div></div>
         <label id="a-dist-l">Distance (miles) <input type="number" id="a-dist" min="0" step="0.1" inputmode="decimal" placeholder="optional"></label>
         <label style="grid-column:1/-1">Note <input id="a-note" placeholder="optional"></label>
-        <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center"><button type="submit">Save</button><span class="small muted" id="a-est"></span></div>
+        <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="submit" id="a-save">Save</button><button type="button" class="ghost" id="a-cancel" style="display:none">Cancel</button><span class="small muted" id="a-est"></span></div>
       </form>
       <p class="small muted" style="margin:8px 0 0">Calories are the extra burn above resting, estimated from your weight, the minutes and how hard it was (resting calories are already in the forecast). Twenty minutes or more counts as a workout day.</p>
     </div>
@@ -123,9 +130,27 @@ const setStr = s => `${s.weight == null ? "body" : fmt(s.weight)}×${s.reps ?? "
 const mmss = sec => { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60;
   return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(s).padStart(2, "0"); };
 
+/* Any past day can be logged or fixed: pick it in the day bar. A day that is not today says so, loudly. */
+function dayNote() {
+  const t = todayStr(), past = ds !== t;
+  el("date").value = ds; el("date").max = t;
+  el("day-next").disabled = !past; el("day-today").style.display = past ? "" : "none";
+  const n = el("past-note"); n.style.display = past ? "" : "none";
+  if (past) n.textContent = `Logging for ${new Date(ds + "T12:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}, not today. Anything you save goes on that day.`;
+  if (!actEdit) el("act-title").textContent = past ? "Log other training for that day" : "Log other training";
+}
+function goDay(d) {
+  const t = todayStr(); d = d > t ? t : d;
+  ds = d; pending = null; open = {}; entry = {}; extra = {}; editId = null; endActEdit();
+  history.replaceState(null, "", (ds === t ? "log.html" : `log.html?date=${ds}`) + location.hash);
+  load().catch(e => flash("msg", e.message, "err"));
+  if (el("tab-other").style.display !== "none") loadActs();
+}
+function shiftDay(n) { const d = new Date(ds + "T12:00"); d.setDate(d.getDate() + n); goDay(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")); }
+
 async function load() {
   D = await api(`/api/log/${ds}`);
-  el("date").value = ds;
+  dayNote();
   el("ex-names").innerHTML = D.exercises.map(x => `<option value="${esc(x)}">`).join("");
   render();
 }
@@ -148,7 +173,7 @@ function exList(s) {
     return { name: n, tpl: t || null, sets: d ? d.sets : [], last: (d && d.last) || (t && t.last) || null, target: tg ? tg.sets : null, treps: tg ? tg.reps : null };
   });
 }
-/* a target in numbers, or read from a note like "5 Sets 10 Reps" or "3 sets of 12" (Gym ACE keeps them as notes) */
+/* a target in numbers, or read from a note like "5 Sets 10 Reps" or "3 sets of 12" (older workouts keep them as notes) */
 function targetOf(t) {
   if (!t) return null;
   if (t.target_sets) return { sets: t.target_sets, reps: t.target_reps ?? null };
@@ -510,19 +535,38 @@ async function loadActs() {
     el("a-kind").innerHTML = groups.map(g => `<optgroup label="${esc(g)}">${actKinds.filter(k => k.group === g).map(k => `<option value="${k.id}">${esc(k.name)}</option>`).join("")}</optgroup>`).join("");
     estimate();
   }
-  el("act-list").innerHTML = r.entries.length ? r.entries.map(x => `<div class="food-row"><div class="name"><strong>${esc(x.name)}</strong> <span class="muted small">${fmtDate(x.date)}</span>
+  actRows = r.entries;
+  el("act-list").innerHTML = r.entries.length ? r.entries.map(x => `<div class="food-row${x.date === ds ? " on-day" : ""}"><div class="name"><strong>${esc(x.name)}</strong> <span class="muted small">${fmtDate(x.date)}</span>
       <div class="meta">${x.minutes} min, ${x.intensity}${x.distance ? `, ${x.distance} mi` : ""} · about ${x.kcal} kcal${x.note ? " · " + esc(x.note) : ""}</div></div>
-      <button class="small danger" onclick="dropAct(${x.id})">Delete</button></div>`).join("") : `<p class="muted" style="margin:0">Nothing logged in the last two weeks.</p>`;
+      <button class="small ghost" onclick="editAct(${x.id})">Edit</button> <button class="small danger" onclick="dropAct(${x.id})">Delete</button></div>`).join("") : `<p class="muted" style="margin:0">Nothing logged in the two weeks up to this day.</p>`;
 }
-async function dropAct(id) { if (!confirm("Delete this entry?")) return; await api(`/api/activities/${id}`, { method: "DELETE" }); loadActs(); }
+/* fixing an entry: the form fills with it, Save changes it in place (its own day stays) */
+let actRows = [], actEdit = null;
+function setInt(v) { actInt = v; document.querySelectorAll("#a-int button").forEach(x => x.classList.toggle("on", x.dataset.v === v)); }
+function editAct(id) {
+  const x = actRows.find(z => z.id === id); if (!x) return;
+  actEdit = x;
+  el("a-kind").value = x.kind; el("a-min").value = x.minutes; setInt(x.intensity); el("a-dist").value = x.distance ?? ""; el("a-note").value = x.note || "";
+  el("act-title").textContent = `Fix ${x.name}, ${fmtDate(x.date)}`; el("a-save").textContent = "Save changes"; el("a-cancel").style.display = "";
+  estimate(); el("act-form").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function endActEdit() {
+  if (!actEdit) return;
+  actEdit = null; el("a-save").textContent = "Save"; el("a-cancel").style.display = "none"; el("a-note").value = ""; el("a-dist").value = "";
+  el("act-title").textContent = ds !== todayStr() ? "Log other training for that day" : "Log other training";
+}
+el("a-cancel").addEventListener("click", endActEdit);
+async function dropAct(id) { if (!confirm("Delete this entry?")) return; await api(`/api/activities/${id}`, { method: "DELETE" }); if (actEdit && actEdit.id === id) endActEdit(); loadActs(); }
 el("a-kind").addEventListener("change", estimate);
 el("a-min").addEventListener("input", estimate);
 el("act-form").addEventListener("submit", async ev => {
   ev.preventDefault();
   try {
-    const x = await api("/api/activities", { method: "POST", body: { date: ds, kind: el("a-kind").value, minutes: +el("a-min").value, intensity: actInt, distance: el("a-dist").value, note: el("a-note").value } });
+    const body = { kind: el("a-kind").value, minutes: +el("a-min").value, intensity: actInt, distance: el("a-dist").value, note: el("a-note").value };
+    const x = actEdit ? await api(`/api/activities/${actEdit.id}`, { method: "PATCH", body }) : await api("/api/activities", { method: "POST", body: { ...body, date: ds } });
+    const fixed = !!actEdit; endActEdit();
     el("a-note").value = ""; el("a-dist").value = "";
-    flash("msg", `Saved: ${x.name}, ${x.minutes} min, about ${x.kcal} kcal.`); loadActs();
+    flash("msg", `${fixed ? "Changed" : "Saved"}: ${x.name} on ${fmtDate(x.date)}, ${x.minutes} min, about ${x.kcal} kcal.`); loadActs();
   } catch (e) { flash("msg", e.message, "err"); }
 });
 if (location.hash === "#other") showTab("other");
@@ -533,11 +577,10 @@ el("wk-new").addEventListener("click", () => {
   editing[n] = { name: "", exercises: [{ exercise: "", target_sets: 3, target_reps: 10 }], isNew: true }; renderEditor();
 });
 
-el("date").addEventListener("change", () => {
-  ds = el("date").value || todayStr(); pending = null; open = {}; entry = {}; extra = {}; editId = null;
-  history.replaceState(null, "", ds === todayStr() ? "log.html" : `log.html?date=${ds}`);
-  load().catch(e => flash("msg", e.message, "err"));
-});
+el("date").addEventListener("change", () => goDay(el("date").value || todayStr()));
+el("day-prev").addEventListener("click", () => shiftDay(-1));
+el("day-next").addEventListener("click", () => shiftDay(1));
+el("day-today").addEventListener("click", () => goDay(todayStr()));
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { wake = null; tick(); } });
 load().catch(e => flash("msg", e.message, "err"));
 </script>

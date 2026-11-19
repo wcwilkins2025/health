@@ -75,7 +75,7 @@
 
   // ---------- gym and the log ----------
   on('GET', '/api/gym/workouts', function (S) { return E.workoutNames(S).map(function (w) { return { workout: w, exercises: E.workoutTemplate(S, w) }; }); });
-  on('GET', '/api/gym/sessions', function (S) { return { sessions: E.sessions(S), last_sync: E.get(S, 'gymace_last_sync') }; });
+  on('GET', '/api/gym/sessions', function (S) { return { sessions: E.sessions(S) }; });
   on('GET', '/api/gym/sessions/{ms}', function (S, p) { return E.sessionDetail(S, Number(p.ms)); });
   on('GET', '/api/gym/weekly', function (S) { return E.weeklyVolume(S); });
   on('GET', '/api/gym/prs', function (S) { return E.personalRecords(S); });
@@ -133,6 +133,10 @@
     return { kinds: E.ACTIVITIES, entries: E.activitiesOn(S, from, to).reverse() };
   });
   on('POST', '/api/activities', async function (S, p, b) { var r = await E.addActivity(S, b); return E.activitiesOn(S, r.date, r.date).find(function (x) { return x.id === r.id; }); });
+  on('PATCH', '/api/activities/{id}', async function (S, p, b) {
+    var id = await E.updateActivity(S, p.id, b), x = (S.db.activities || []).find(function (z) { return z.id === id; });
+    return E.activitiesOn(S, x.date, x.date).find(function (z) { return z.id === id; });
+  });
   on('DELETE', '/api/activities/{id}', async function (S, p) {
     if (!S.db.activities.some(function (x) { return String(x.id) === String(p.id); })) throw E.bad('No such entry', 404);
     await S.remove('activities', { id: p.id }); return { ok: true };
